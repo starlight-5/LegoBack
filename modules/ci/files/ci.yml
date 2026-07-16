@@ -1,0 +1,14 @@
+# 이 프로젝트의 테스트 자동화 — push/PR 마다 pytest 실행
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest
+      # TODO: database 모듈 사용 시 postgres 서비스 컨테이너 필요

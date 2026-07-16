@@ -1,0 +1,13 @@
+name: ci
+description: GitHub Actions 테스트 자동화 (생성 프로젝트용)
+category: infra
+depends_on: []
+files:
+  - src: files/ci.yml
+    dest: .github/workflows/ci.yml
+pip_packages: []
+env_vars: []
+routers: []
+docker_services: {}
+# NOTE: 우리 저장소의 .github/workflows/ci.yml 과는 별개 파일이다.
+# TODO [회의]: database/redis 선택 시 services: 블록 자동 추가 방식

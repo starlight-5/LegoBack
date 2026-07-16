@@ -1,0 +1,12 @@
+name: rbac
+description: 역할 기반 접근 제어 (ADMIN/USER)
+category: auth
+depends_on:
+  - jwt-auth
+files:
+  - src: files/src/core/rbac.py
+    dest: src/core/rbac.py
+pip_packages: []
+env_vars: []
+routers: []
+docker_services: {}

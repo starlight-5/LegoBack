@@ -1,0 +1,28 @@
+name: jwt-auth
+description: 회원가입·로그인·토큰 재발급 (JWT)
+category: auth
+depends_on:
+  - settings
+files:
+  - src: files/src/routers/auth.py
+    dest: src/routers/auth.py
+  - src: files/src/models/user.py
+    dest: src/models/user.py
+  - src: files/tests/test_auth.py
+    dest: tests/test_auth.py
+pip_packages:
+  - python-jose[cryptography]>=3.3
+  - passlib[bcrypt]>=1.7
+env_vars:
+  - name: JWT_SECRET_KEY
+    default: ""
+    description: 토큰 서명에 쓰는 비밀 키 (반드시 변경)
+  - name: JWT_ACCESS_MINUTES
+    default: "30"
+    description: access 토큰 유효 시간(분)
+routers:
+  - module: src.routers.auth
+    attr: router
+    prefix: /auth
+    tag: auth
+docker_services: {}

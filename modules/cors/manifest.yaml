@@ -1,0 +1,16 @@
+name: cors
+description: 프론트엔드 교차 출처 허용
+category: config
+depends_on:
+  - settings
+files:
+  - src: files/src/core/cors.py
+    dest: src/core/cors.py
+pip_packages: []
+env_vars:
+  - name: CORS_ORIGINS
+    default: http://localhost:3000
+    description: 허용할 프론트엔드 주소 (쉼표 구분)
+routers: []
+docker_services: {}
+# NOTE [회의 안건]: apply(app) 자동 연결은 registrations 필드 확정 후

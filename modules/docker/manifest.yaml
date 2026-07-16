@@ -1,0 +1,13 @@
+name: docker
+description: Dockerfile + docker-compose 실행 환경
+category: infra
+depends_on: []
+files:
+  - src: files/dockerignore
+    dest: .dockerignore
+pip_packages: []
+env_vars: []
+routers: []
+docker_services: {}
+# docker-compose.yml / Dockerfile 은 엔진(generator.write_docker)이 렌더링한다.
+# 다른 모듈의 docker_services(예: database의 db)가 여기에 합류된다.

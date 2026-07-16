@@ -1,0 +1,47 @@
+# ============================================================
+# fastapi-scaffold 패키지 정의서
+# 온보딩: python -m venv .venv → 활성화 → pip install -e ".[dev]" → pytest
+# ============================================================
+
+[project]
+name = "fastapi-scaffold"            # 패키지 이름 (pip가 인식하는 공식 명칭)
+version = "0.1.0"
+description = "AI 기반 백엔드 초기 환경 설정 도구"
+requires-python = ">=3.11"           # graphlib·최신 문법 사용. 팀 표준은 3.12 (CI와 동일)
+
+# 도구가 '돌아가는 데' 필요한 필수 패키지 — pip install -e . 만 해도 설치됨
+dependencies = [
+    "typer>=0.12",        # [4.1] CLI 명령어 파서 (scaffold new ...)
+    "questionary>=2.0",   # [4.2] 화살표 키 + 스페이스 체크박스 UI
+    "pydantic>=2.7",      # [2.2.1] manifest 스키마 / [1.2.2] AnalysisResult 계약
+    "jinja2>=3.1",        # [2.3~2.5] 렌더링형 파일 생성 (main.py, compose 등)
+    "pyyaml>=6.0",        # [2.2.1] manifest.yaml 읽기
+    "packaging>=24.0",    # [3.1] 버전 범위(SpecifierSet) 교집합 검사
+]
+
+# '개발할 때만' 필요한 선택 묶음 — pip install -e ".[dev]" 로 함께 설치 (팀원은 이쪽)
+# 대괄호는 쉘 특수문자라 따옴표 필수 (macOS zsh에서 no matches found 방지)
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",      # 테스트 실행기 (tests/ 의 test_* 자동 발견)
+    "pytest-cov>=5.0",  # 커버리지 플러그인 — 엔진 70% 게이트를 로컬에서도 CI와 동일하게 측정
+]
+
+# 설치 시 만들어지는 명령어: `scaffold` 입력 → src/scaffold/cli.py 의 app 실행
+# (이 저장소에 main.py가 없는 이유 — 진입점이 여기 등록되어 있음)
+[project.scripts]
+scaffold = "scaffold.cli:app"
+
+# pip가 이 패키지를 설치할 때 쓰는 빌드 도구 지정 (건드릴 일 없음)
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+# 패키지 소스가 src/ 아래에 있음을 알려줌 (src 레이아웃)
+# 주의: templates/ 가 저장소 루트라 -e(editable) 설치 필수 — 일반 설치 시 템플릿 못 찾음
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# pytest 기본 설정: 테스트는 tests/ 폴더에서만 탐색
+[tool.pytest.ini_options]
+testpaths = ["tests"]

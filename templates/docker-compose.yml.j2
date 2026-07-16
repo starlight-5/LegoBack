@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./src:/app/src
+{% if services %}
+    depends_on:
+{% for name, svc in services %}
+      - {{ name }}
+{% endfor %}
+{% endif %}
+{% for name, svc in services %}
+  {{ name }}:
+    image: {{ svc.image }}
+{% if svc.ports %}
+    ports:
+{% for p in svc.ports %}
+      - "{{ p }}"
+{% endfor %}
+{% endif %}
+{% if svc.environment %}
+    environment:
+{% for k, v in svc.environment.items() %}
+      {{ k }}: "{{ v }}"
+{% endfor %}
+{% endif %}
+{% if svc.volumes %}
+    volumes:
+{% for v in svc.volumes %}
+      - {{ v }}
+{% endfor %}
+{% endif %}
+{% endfor %}

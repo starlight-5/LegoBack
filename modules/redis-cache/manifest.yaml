@@ -1,0 +1,19 @@
+name: redis-cache
+description: Redis 캐시 (조회 속도 향상)
+category: data
+depends_on:
+  - settings
+files:
+  - src: files/src/core/cache.py
+    dest: src/core/cache.py
+pip_packages:
+  - redis>=5.0
+env_vars:
+  - name: REDIS_URL
+    default: redis://redis:6379/0
+    description: Redis 접속 주소 (호스트명 redis = compose 서비스명)
+routers: []
+docker_services:
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]

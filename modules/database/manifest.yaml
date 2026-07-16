@@ -1,0 +1,29 @@
+name: database
+description: SQLAlchemy + Alembic DB 연동 (PostgreSQL 기본)
+category: data
+depends_on:
+  - settings
+files:
+  - src: files/src/core/db.py
+    dest: src/core/db.py
+pip_packages:
+  - sqlalchemy>=2.0
+  - alembic>=1.13
+  - psycopg2-binary>=2.9
+env_vars:
+  - name: DATABASE_URL
+    default: postgresql://app:app@db:5432/app
+    description: DB 접속 주소 (호스트명 db = docker-compose 서비스명)
+routers: []
+docker_services:
+  db:
+    image: postgres:16
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - db-data:/var/lib/postgresql/data
+options:
+  db_type: postgresql   # TODO [회의]: mysql/sqlite 선택 지원

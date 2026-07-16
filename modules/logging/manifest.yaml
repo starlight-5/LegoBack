@@ -1,0 +1,15 @@
+name: logging
+description: 요청 로깅 미들웨어
+category: quality
+depends_on: []
+files:
+  - src: files/src/core/logging_mw.py
+    dest: src/core/logging_mw.py
+pip_packages: []
+env_vars:
+  - name: LOG_LEVEL
+    default: INFO
+    description: 로그 레벨 (DEBUG/INFO/WARNING)
+routers: []
+docker_services: {}
+# NOTE [회의 안건]: 미들웨어 자동 등록은 registrations 필드 확정 후
