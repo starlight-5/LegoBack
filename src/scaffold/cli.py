@@ -17,16 +17,19 @@ from scaffold.engine.generator import generate
 from scaffold.engine.loader import load_manifests
 from scaffold.engine.resolver import collect_env, resolve
 
-app = typer.Typer(help="AI 기반 FastAPI 초기 환경 설정 도구")
+app = typer.Typer(add_completion=False)
+
+
+@app.callback()
+def main():
+    """AI 기반 FastAPI 초기 환경 설정 도구."""
 
 NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")            # [1.1.1] 이름 규칙
 MODULES_DIR = Path(__file__).resolve().parents[2] / "modules"
 
-
 def _normalize(text: str) -> str:
     """[1.1.2] 공백 정리 + 길이 제한."""
     return " ".join(text.split())[:500]
-
 
 @app.command()
 def new(
