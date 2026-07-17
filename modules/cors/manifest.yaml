@@ -13,4 +13,5 @@ env_vars:
     description: 허용할 프론트엔드 주소 (쉼표 구분)
 routers: []
 docker_services: {}
-# NOTE [회의 안건]: apply(app) 자동 연결은 registrations 필드 확정 후
+registrations:
+  - src.core.cors.apply          # cors의 함수 이름은 apply

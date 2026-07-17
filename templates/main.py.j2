@@ -3,9 +3,15 @@ from fastapi import FastAPI
 {% for r in routers %}
 from {{ r.module }} import {{ r.attr }} as {{ r.module.split('.')[-1] }}_{{ r.attr }}
 {% endfor %}
+{% for r in registrations %}
+from {{ r.mod }} import {{ r.fn }} as {{ r.alias }}
+{% endfor %}
 
 app = FastAPI(title="{{ project_name }}")
 
+{% for r in registrations %}
+{{ r.alias }}(app)
+{% endfor %}
 
 @app.get("/health")
 def health() -> dict:

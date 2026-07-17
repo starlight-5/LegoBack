@@ -44,5 +44,8 @@ class ModuleManifest(BaseModel):
     pip_packages: list[str] = Field(default_factory=list)
     env_vars: list[EnvVar] = Field(default_factory=list)
     routers: list[RouterSpec] = Field(default_factory=list)
+    registrations: list[str] = Field(default_factory=list)
+    # main.py에서 호출할 등록 함수 경로. 함수는 app 하나를 인자로 받아야 한다. [선택2 결정]
+    # 예: ["src.core.cors.apply"]
     docker_services: dict[str, DockerService] = Field(default_factory=dict)
     options: dict = Field(default_factory=dict)   # [회의 안건] 예: db_type

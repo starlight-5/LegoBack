@@ -23,7 +23,7 @@ def _make(tmp_path: Path, selected: list[str], name="demo") -> Path:
 def test_bare_skeleton(tmp_path):
     """[2.3.1] 완료 기준: 모듈 0개여도 /health 앱과 기본 테스트가 존재."""
     out = _make(tmp_path, [])
-    main = (out / "src" / "main.py").read_text()
+    main = (out / "src" / "main.py").read_text(encoding="utf-8")
     assert "/health" in main and "include_router" not in main
     assert (out / "tests" / "test_health.py").exists()
     assert (out / ".gitignore").exists()
@@ -33,11 +33,11 @@ def test_module_delivery(tmp_path):
     """[2.4.1~2.4.4] 파일 복사 + 라우터 등록 + .env 주석."""
     out = _make(tmp_path, ["jwt-auth"])
     assert (out / "src" / "routers" / "auth.py").exists()
-    main = (out / "src" / "main.py").read_text()
+    main = (out / "src" / "main.py").read_text(encoding="utf-8")
     assert 'prefix="/auth"' in main
-    env = (out / ".env").read_text()
+    env = (out / ".env").read_text(encoding="utf-8")
     assert "# [jwt-auth]" in env and "여기에 값을 입력하세요" in env
-    py = (out / "pyproject.toml").read_text()
+    py = (out / "pyproject.toml").read_text(encoding="utf-8")
     assert "python-jose" in py and "fastapi" in py
 
 
@@ -70,9 +70,18 @@ def test_full_ten_module_generation(tmp_path):
     ordered = resolve(sorted(m), m)
     out = tmp_path / "full"
     generate(out, "full", ordered, m, MODULES, collect_env(ordered, m))
-    compose = (out / "docker-compose.yml").read_text()
+    compose = (out / "docker-compose.yml").read_text(encoding="utf-8")
     assert "db:" in compose and "redis:" in compose and "depends_on" in compose
     assert (out / ".github" / "workflows" / "ci.yml").exists()
     assert (out / ".dockerignore").exists()
-    env = (out / ".env").read_text()
+    env = (out / ".env").read_text(encoding="utf-8")
     assert "DATABASE_URL" in env and "@db:5432" in env
+
+
+def test_registrations_wired(tmp_path):
+    """[선택2] 등록 함수가 main.py에서 호출되는지 — 세 모듈 전부."""
+    out = _make(tmp_path, ["cors", "logging", "exception-handler"])
+    main = (out / "src" / "main.py").read_text(encoding="utf-8")
+    assert "cors_apply(app)" in main
+    assert "logging_mw_apply(app)" in main
+    assert "exceptions_apply(app)" in main

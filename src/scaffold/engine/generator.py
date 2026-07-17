@@ -44,12 +44,21 @@ def create_skeleton(project_dir: Path, project_name: str,
     """[2.3.1] 최소 뼈대: 모듈 0개여도 uvicorn 구동 + /health 200."""
     env = _env()
     routers = [r for name in ordered for r in manifests[name].routers]
+    regs = []                                          # [선택2] 등록 함수 수집  ← 추가 1
+    for name in ordered:
+        for path in manifests[name].registrations:
+            mod, fn = path.rsplit(".", 1)
+            alias = mod.split(".")[-1] + "_" + fn
+            regs.append({"mod": mod, "fn": fn, "alias": alias})
+
     (project_dir / "src").mkdir(parents=True, exist_ok=True)
     (project_dir / "tests").mkdir(parents=True, exist_ok=True)
     (project_dir / "src" / "__init__.py").touch()
 
     (project_dir / "src" / "main.py").write_text(
-        env.get_template("main.py.j2").render(project_name=project_name, routers=routers),
+        env.get_template("main.py.j2").render(
+            project_name=project_name, routers=routers,
+            registrations=regs),                       # ← 추가 2
         encoding="utf-8")
     (project_dir / "pyproject.toml").write_text(
         env.get_template("pyproject.toml.j2").render(
