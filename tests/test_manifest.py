@@ -11,6 +11,7 @@ def test_load_all_manifests():
     assert "settings" in m and "jwt-auth" in m
     assert m["jwt-auth"].depends_on == ["settings"]
     assert m["jwt-auth"].routers[0].prefix == "/auth"
+    assert m["cors"].registrations == ["src.core.cors.apply"]
 
 
 def test_all_ten_modules_present():
