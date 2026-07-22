@@ -1,6 +1,7 @@
 name: settings
 description: pydantic-settings 기반 환경설정 (.env 로딩)
 category: config
+required: true
 depends_on: []
 files:
   - src: files/src/core/config.py
