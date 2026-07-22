@@ -6,6 +6,7 @@
 import logging
 import re
 import shutil
+import sys
 from pathlib import Path
 
 import typer
@@ -21,6 +22,13 @@ from scaffold.engine.loader import load_manifests
 from scaffold.engine.resolver import collect_env, resolve
 
 load_dotenv()  # GEMINI_API_KEY 등을 .env에서 자동 로드
+
+# git-bash(mintty) 등 진짜 Win32 콘솔이 아닌 터미널에서는 PEP 528의 콘솔 전용 유니코드
+# 경로를 못 타고 시스템 코드페이지(cp949 등)로 인코딩을 시도하다 ui.py의 아이콘(▸✔⚠✘)에서
+# UnicodeEncodeError로 죽는다. 인코딩은 그대로 두고 에러 시 대체 문자로 넘어가게만 한다.
+if sys.platform == "win32":
+    sys.stdout.reconfigure(errors="backslashreplace")
+    sys.stderr.reconfigure(errors="backslashreplace")
 
 app = typer.Typer(add_completion=False)
 
