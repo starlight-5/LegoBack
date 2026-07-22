@@ -27,7 +27,7 @@ def _ensure_questionary() -> None:
 
 # 입력: text(str) - 원본 텍스트, limit(int) - 최대 길이 (기본 30자, AI 프롬프트의 근거 길이 지침과 동일)
 # 출력: str - limit 이하면 그대로, 넘으면 잘라서 끝에 … 붙인 텍스트
-def truncate(text: str, limit: int = 35) -> str:
+def truncate(text: str, limit: int = 30) -> str:
     if len(text) <= limit:
         return text
     return text[: limit - 1] + "…"
@@ -63,10 +63,6 @@ def select_modules(recommended: list[str], all_modules: list[str],
         )
         for m in all_modules
     ]
-    # "Description: ..." 줄은 questionary 내부적으로 커서가 없는 선택지 글자와 같은
-    # class:text 스타일을 공유한다(라이브러리가 설명 전용 클래스를 따로 안 둠). 그래서
-    # 이 색을 바꾸면 커서가 없는 항목 글자색도 같이 바뀐다 — 두 개를 분리하려면 questionary
-    # 내부 렌더링 코드를 오버라이드해야 해서 여기서는 손대지 않는다.
     style = questionary.Style([("text", "fg:#808080 italic")])
     # questionary의 ask()는 Ctrl+C를 내부에서 삼키고 None을 반환해 취소가 안 되는 것처럼 보인다.
     # unsafe_ask()로 KeyboardInterrupt를 그대로 전파해 cli.py의 취소 처리로 넘긴다.

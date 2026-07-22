@@ -61,13 +61,15 @@ def new(
 ):
     """[4.1.2] 새 프로젝트 생성을 시작합니다."""
     logging.basicConfig(level=logging.DEBUG if verbose else logging.WARNING)
+    # [1.1.1] 프로젝트 이름 규칙 검증
     if not NAME_RE.match(project_name):
         ui.err(f"프로젝트 이름 규칙 위반: '{project_name}'",
                "영소문자로 시작, 영소문자·숫자·하이픈만 가능합니다. 예: my-blog")
         raise typer.Exit(1)
 
-    project_dir = Path.cwd() / project_name
-    if project_dir.exists():                            # [4.1.3] 이름 중복 처리
+    project_dir = Path.cwd() / project_name #Path.cwd 현재 작업 디렉터리
+    # [4.1.3] 이름 중복 처리
+    if project_dir.exists():
         ui.err(f"'{project_name}' 폴더가 이미 존재합니다.",
                "다른 이름을 쓰거나 기존 폴더를 정리해 주세요.")
         raise typer.Exit(1)
@@ -118,12 +120,12 @@ def _print_recommendations(result: AnalysisResult) -> None:
 def _choose_modules(result: AnalysisResult, manifests: dict) -> list[str]:
     """[2.1] 체크박스 선택 → 확인. N이면 재선택, 0개 선택은 거부."""
     while True:
-        descriptions = {name: m.description for name, m in manifests.items()}
-        locked = [name for name, m in manifests.items() if m.required]
+        descriptions = {name: m.description for name, m in manifests.items()} #모듈 이름과 설명을 딕셔너리로 저장
+        locked = [name for name, m in manifests.items() if m.required] # 필수 모듈만 저장
         selected = ui.select_modules(result.recommended_modules, sorted(manifests), result.reasons,
-                                      descriptions, locked)
+                                      descriptions, locked) #questionary 라이브러리를 사용하여 모듈 선택
         if not selected:                                 # [2.1.3] 0개 검증
-            ui.warn("모듈을 1개 이상 선택해 주세요. (없이 만들려면 Ctrl+C 후 --bare 예정)")
+            ui.warn("모듈을 1개 이상 선택해 주세요.")
             continue
         typer.echo("선택: " + ", ".join(selected))
         if ui.confirm("이대로 진행할까요?"):
