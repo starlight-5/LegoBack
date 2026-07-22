@@ -2,6 +2,12 @@
 
 D 파트 소유. 흐름 로직(2.1)은 cli.py에 있고, 여기는 화면만 담당한다.
 """
+import itertools
+import shutil
+import sys
+import threading
+import time
+
 import typer
 
 try:
@@ -76,11 +82,47 @@ def confirm(message: str) -> bool:
     return bool(questionary.confirm(message).unsafe_ask())
 
 
+# [4.3.1~4.3.2] 작업 중 회전 스피너. with 블록으로 감싼 구간이 끝날 때까지 돈다.
+class _Spinner:
+    _FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    _INTERVAL = 0.08
+
+    def __init__(self, msg: str) -> None:
+        self._msg = msg
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._spin, daemon=True)
+
+    def _spin(self) -> None:
+        for frame in itertools.cycle(self._FRAMES):
+            if self._stop.is_set():
+                break
+            typer.secho(f"\r{frame} {self._msg}", fg=typer.colors.CYAN, nl=False)
+            time.sleep(self._INTERVAL)
+
+    def __enter__(self) -> "_Spinner":
+        # 터미널이 아니면(리다이렉션·테스트 환경) 스피너 없이 메시지만 한 번 출력
+        if sys.stdout.isatty():
+            self._thread.start()
+        else:
+            typer.secho(f"▸ {self._msg}", fg=typer.colors.CYAN)
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        if self._thread.is_alive():
+            self._stop.set()
+            self._thread.join()
+            width = shutil.get_terminal_size((80, 20)).columns
+            typer.echo("\r" + " " * width + "\r", nl=False)  # 스피너 줄 지우기
+            if exc_type is None:
+                typer.secho(f"▸ {self._msg}", fg=typer.colors.CYAN)
+        return False  # 예외는 그대로 전파
+
+
 # 입력: msg(str) - 표시할 단계 메시지
-# 출력: 없음 (콘솔에 청록색으로 출력)
-def step(msg: str) -> None:
-    """[4.3.3] 현재 단계 안내. TODO [4.3.1~4.3.2] 프로그레스 바·스피너."""
-    typer.secho(f"▸ {msg}", fg=typer.colors.CYAN)
+# 출력: _Spinner - with 블록으로 감싸면 작업 중 회전 스피너를 보여주는 컨텍스트 매니저
+def step(msg: str) -> "_Spinner":
+    """[4.3.1~4.3.3] 현재 단계 안내 + 진행 중 스피너 (with 블록으로 사용)."""
+    return _Spinner(msg)
 
 
 # 입력: msg(str) - 성공 메시지

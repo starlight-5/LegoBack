@@ -183,9 +183,9 @@ def run_init_flow(project_name: str, project_dir: Path, verbose: bool) -> None:
     desc = _normalize(typer.prompt(
         "어떤 프로젝트인가요? (민감 정보는 입력하지 마세요)"))  # [1.1.1~1.1.2]
 
-    ui.step("자연어 분석 중...")
     try:
-        result = analyze(desc, manifests)                                # [1.2]
+        with ui.step("자연어 분석 중..."):
+            result = analyze(desc, manifests)                             # [1.2]
         desc, result = _ask_clarifying_round(desc, result, manifests)    # [1.1.3]
         _print_recommendations(result)                                   # [1.3.4]
     except AIConnectionError:
@@ -194,14 +194,14 @@ def run_init_flow(project_name: str, project_dir: Path, verbose: bool) -> None:
 
     selected = _choose_modules(result, manifests)                    # [2.1]
 
-    ui.step("의존성 해석 중...")
-    ordered, env_pairs = _resolve_dependencies(selected, manifests)  # [2.2]
+    with ui.step("의존성 해석 중..."):
+        ordered, env_pairs = _resolve_dependencies(selected, manifests)  # [2.2]
 
-    ui.step("충돌 검사 중...")
-    _check_conflicts(ordered, env_pairs, manifests)                  # [3.x]
+    with ui.step("충돌 검사 중..."):
+        _check_conflicts(ordered, env_pairs, manifests)                  # [3.x]
 
-    ui.step("프로젝트 생성 중...")
-    generate(project_dir, project_name, ordered, manifests, MODULES_DIR, env_pairs)
+    with ui.step("프로젝트 생성 중..."):
+        generate(project_dir, project_name, ordered, manifests, MODULES_DIR, env_pairs)
 
     _print_success(project_name, ordered)                            # [4.4.2]
 
