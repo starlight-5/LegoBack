@@ -30,3 +30,14 @@ class DuplicateFileError(ScaffoldError):
             f"파일 경로 충돌: '{dest}' — {first} 모듈과 {second} 모듈이 같은 위치에 씁니다.",
             "두 모듈 중 하나의 manifest files.dest를 수정해야 합니다.",
         )
+
+
+class AIConnectionError(ScaffoldError):
+    """[1.2.1] Gemini 호출 실패 (키 없음·패키지 미설치·네트워크·파싱 오류 등)."""
+
+    def __init__(self, reason: str):
+        super().__init__(
+            "E-AI",
+            f"AI 연결에 실패했습니다: {reason}",
+            "GEMINI_API_KEY 환경변수와 네트워크 연결 상태를 확인하세요.",
+        )

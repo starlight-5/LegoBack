@@ -39,6 +39,7 @@ class ModuleManifest(BaseModel):
     name: str
     description: str = ""
     category: str = ""
+    required: bool = False  # True면 항상 포함 — 체크박스 UI에서 해제 불가능하게 잠긴다.
     depends_on: list[str] = Field(default_factory=list)
     files: list[FileMapping] = Field(default_factory=list)
     pip_packages: list[str] = Field(default_factory=list)

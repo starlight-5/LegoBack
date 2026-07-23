@@ -17,6 +17,8 @@ dependencies = [
     "jinja2>=3.1",        # [2.3~2.5] 렌더링형 파일 생성 (main.py, compose 등)
     "pyyaml>=6.0",        # [2.2.1] manifest.yaml 읽기
     "packaging>=24.0",    # [3.1] 버전 범위(SpecifierSet) 교집합 검사
+    "google-genai>=1.0",  # [1.2.1] Gemini 호출 (AI 모듈 추천)
+    "python-dotenv>=1.0", # .env에서 GEMINI_API_KEY 등을 자동 로드
 ]
 
 # '개발할 때만' 필요한 선택 묶음 — pip install -e ".[dev]" 로 함께 설치 (팀원은 이쪽)

@@ -50,7 +50,7 @@ docs/           # C 파트 — 모듈 기여 가이드 (구분 5)
 | 3.3 해결 제시 | 3.3.1~3.3.4 | `conflicts.py` 하단 TODO | **미착수 — D 파트와 협의 필요** |
 | 4.1 명령어 | 4.1.1~4.1.4 | `cli.py` | 완료 |
 | 4.2 선택 UI | 4.2.1~4.2.4 | `ui.py` select_modules | 완료 (questionary) |
-| 4.3 진행 표시 | 4.3.1~4.3.3 | `ui.py` step | 4.3.3만 완료, 바·스피너 TODO |
+| 4.3 진행 표시 | 4.3.1~4.3.3 | `ui.py` step (스피너) | 완료 |
 | 4.4 메시지 | 4.4.1~4.4.4 | `ui.py`, `engine/errors.py` | 완료 |
 | 5.x 생태계 | 5.1~5.2 | `docs/CONTRIBUTING-MODULES.md` | 초안 |
 
