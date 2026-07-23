@@ -9,7 +9,7 @@ AI 기반 백엔드 초기 환경 설정 도구. 자연어 설명 → 모듈 추
 ```bash
 pip install -e ".[dev]"
 pytest                      # 14개 테스트 통과 확인
-scaffold new my-blog        # 대화형 생성 흐름 실행
+legoback new my-blog        # 대화형 생성 흐름 실행
 ```
 
 ## 저장소 구조 = 파트 소유권
@@ -71,7 +71,7 @@ docs/           # C 파트 — 모듈 기여 가이드 (구분 5)
 ## 데모 (현재 동작하는 것)
 
 ```bash
-scaffold new demo-blog
+legoback new demo-blog
 # "블로그 만들거야. 로그인 필요해" 입력
 # → settings, jwt-auth, database 추천 (현재는 키워드 휴리스틱)
 # → 체크박스 선택 → 생성

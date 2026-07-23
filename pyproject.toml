@@ -29,10 +29,10 @@ dev = [
     "pytest-cov>=5.0",  # 커버리지 플러그인 — 엔진 70% 게이트를 로컬에서도 CI와 동일하게 측정
 ]
 
-# 설치 시 만들어지는 명령어: `scaffold` 입력 → src/scaffold/cli.py 의 app 실행
+# 설치 시 만들어지는 명령어: `legoback` 입력 → src/scaffold/cli.py 의 app 실행
 # (이 저장소에 main.py가 없는 이유 — 진입점이 여기 등록되어 있음)
 [project.scripts]
-scaffold = "scaffold.cli:app"
+legoback = "scaffold.cli:app"
 
 # pip가 이 패키지를 설치할 때 쓰는 빌드 도구 지정 (건드릴 일 없음)
 [build-system]
