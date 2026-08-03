@@ -1,9 +1,14 @@
-"""User 모델 스텁 (jwt-auth 모듈). TODO: database 모듈의 Base와 연동."""
-from dataclasses import dataclass
+"""회원 정보 모델 (jwt-auth 모듈)."""
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.core.db import Base
 
 
-@dataclass
-class User:
-    email: str
-    hashed_password: str
-    role: str = "USER"
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(32), default="USER", server_default="USER")

@@ -3,6 +3,7 @@ description: 회원가입·로그인·토큰 재발급 (JWT)
 category: auth
 depends_on:
   - settings
+  - database
 files:
   - src: files/src/routers/auth.py
     dest: src/routers/auth.py
@@ -13,6 +14,8 @@ files:
 pip_packages:
   - python-jose[cryptography]>=3.3
   - passlib[bcrypt]>=1.7
+  - bcrypt>=4.0,<4.1
+  - email-validator>=2.0
 env_vars:
   - name: JWT_SECRET_KEY
     default: ""
@@ -20,6 +23,9 @@ env_vars:
   - name: JWT_ACCESS_MINUTES
     default: "30"
     description: access 토큰 유효 시간(분)
+  - name: JWT_REFRESH_MINUTES
+    default: "10080"
+    description: refresh 토큰 유효 시간(분, 기본 7일)
 routers:
   - module: src.routers.auth
     attr: router
