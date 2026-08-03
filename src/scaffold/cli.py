@@ -168,11 +168,14 @@ def _print_success(project_name: str, ordered: list[str]) -> None:
     """[4.4.2] 완료 안내 + 다음 명령."""
     ui.ok("완료! 다음 명령으로 시작하세요:")
     typer.echo(f"\n  cd {project_name}")
-    typer.echo(
-        "  docker compose up   # docker 모듈 선택 시"
-        if "docker" in ordered else
-        "  uvicorn src.main:app --reload"
-    )
+    if "docker" in ordered:
+        typer.echo("  docker compose up")
+    else:
+        typer.echo("  python -m venv .venv")
+        typer.echo("  .venv\\Scripts\\activate")
+        typer.echo("  pip install -e .")
+        typer.echo("  uvicorn src.main:app --reload")
+    typer.echo("  http://localhost:8000/docs")
 
 
 # 입력: project_name(str) - 프로젝트 이름, project_dir(Path) - 생성 대상 경로,
