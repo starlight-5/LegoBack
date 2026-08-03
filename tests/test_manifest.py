@@ -9,7 +9,7 @@ MODULES = Path(__file__).parents[1] / "modules"
 def test_load_all_manifests():
     m = load_manifests(MODULES)
     assert "settings" in m and "jwt-auth" in m
-    assert m["jwt-auth"].depends_on == ["settings"]
+    assert m["jwt-auth"].depends_on == ["settings", "database"]
     assert m["jwt-auth"].routers[0].prefix == "/auth"
     assert m["cors"].registrations == ["src.core.cors.apply"]
 

@@ -13,8 +13,8 @@ MODULES = Path(__file__).parents[1] / "modules"
 
 def test_auto_include_dependency():
     m = load_manifests(MODULES)
-    ordered = resolve(["jwt-auth"], m)          # settings 자동 포함
-    assert ordered == ["settings", "jwt-auth"]  # 의존받는 쪽 먼저
+    ordered = resolve(["jwt-auth"], m)                       # settings, database 자동 포함
+    assert ordered == ["settings", "database", "jwt-auth"]   # 의존받는 쪽 먼저
 
 
 def test_unknown_module():
@@ -34,4 +34,7 @@ def test_collect_env_order():
     m = load_manifests(MODULES)
     pairs = collect_env(resolve(["jwt-auth"], m), m)
     names = [v.name for _, v in pairs]
-    assert names == ["APP_ENV", "JWT_SECRET_KEY", "JWT_ACCESS_MINUTES"]
+    assert names == [
+        "APP_ENV", "DATABASE_URL",
+        "JWT_SECRET_KEY", "JWT_ACCESS_MINUTES", "JWT_REFRESH_MINUTES",
+    ]
