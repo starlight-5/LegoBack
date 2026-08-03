@@ -7,6 +7,8 @@ AI 기반 백엔드 초기 환경 설정 도구. 자연어 설명 → 모듈 추
 ## 빠른 시작 (팀원용)
 
 ```bash
+python -m venv .venv
+.venv\Scripts\activate
 pip install -e ".[dev]"
 pytest                      # 14개 테스트 통과 확인
 legoback new my-blog        # 대화형 생성 흐름 실행
