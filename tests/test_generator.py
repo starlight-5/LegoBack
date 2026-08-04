@@ -64,6 +64,13 @@ def test_merge_packages_dedup():
     assert sum("pydantic" in p for p in merged) == 1
 
 
+def test_merge_packages_uses_intersection_of_version_ranges():
+    a = ModuleManifest(name="a", pip_packages=["pydantic>=2.0"])
+    b = ModuleManifest(name="b", pip_packages=["pydantic>=2.5"])
+    merged = merge_packages(["a", "b"], {"a": a, "b": b})
+    assert any(pkg == "pydantic>=2.5" for pkg in merged)
+
+
 def test_full_ten_module_generation(tmp_path):
     """10종 전체 선택 → 충돌 없이 생성, compose에 db·redis 서비스 포함."""
     m = load_manifests(MODULES)
