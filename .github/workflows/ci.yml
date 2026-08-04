@@ -10,4 +10,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: pytest --cov=src/scaffold/engine --cov-fail-under=70 tests/test_conflicts.py
+      - run: pytest --cov=src/scaffold/engine --cov-fail-under=70
