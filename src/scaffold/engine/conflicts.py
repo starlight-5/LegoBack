@@ -123,6 +123,21 @@ def _extract_imports(tree: ast.AST) -> dict[str, str]:
     return imports
 
 
+# 입력: call(ast.Call) - 키워드 인자를 검사할 호출 노드, name(str) - 찾을 키워드 이름
+# 출력: str | None - 해당 키워드의 문자열 상수 값 (없거나 문자열이 아니면 None)
+def _get_string_keyword(call: ast.Call, name: str) -> str | None:
+    for kw in call.keywords:
+        if kw.arg == name and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+            return kw.value.value
+    return None
+
+
+# 입력: node(ast.Assign) - 검사할 할당 노드
+# 출력: bool - 대입 대상 중 이름이 "router"인 것이 있는지 여부
+def _is_router_target(node: ast.Assign) -> bool:
+    return any(isinstance(target, ast.Name) and target.id == "router" for target in node.targets)
+
+
 # 입력: tree(ast.AST) - 파싱된 모듈 AST
 # 출력: str - router = APIRouter(prefix="...") 형태에서 추출한 prefix (없으면 "")
 def _extract_router_prefix(tree: ast.AST) -> str:
@@ -130,15 +145,13 @@ def _extract_router_prefix(tree: ast.AST) -> str:
     # 항상 먼저 방문된다. 그래서 이 전체 순회 결과(마지막으로 매칭된 할당값)는 기존의 인라인 처리와 동일하다.
     router_prefix = ""
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
+        if not isinstance(node, ast.Assign) or not _is_router_target(node):
             continue
-        for target in node.targets: #node.targets의 원소는 node.targets.name이다.
-            if isinstance(target, ast.Name) and target.id == "router":
-                if isinstance(node.value, ast.Call):
-                    for kw in node.value.keywords:
-                        if kw.arg == "prefix" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
-                            router_prefix = kw.value.value
-                            break
+        if not isinstance(node.value, ast.Call):
+            continue
+        prefix = _get_string_keyword(node.value, "prefix")
+        if prefix is not None:
+            router_prefix = prefix
     return router_prefix
 
 
@@ -168,11 +181,9 @@ def _parse_include_router(node: ast.Call, imports: dict[str, str], default_prefi
     if func.value.id != "router" or func.attr != "include_router":
         return None
 
-    include_prefix = default_prefix
-    for kw in node.keywords:
-        if kw.arg == "prefix" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
-            include_prefix = kw.value.value
-            break
+    include_prefix = _get_string_keyword(node, "prefix")
+    if include_prefix is None:
+        include_prefix = default_prefix
 
     if not node.args or not isinstance(node.args[0], ast.Name):
         return None
@@ -180,6 +191,37 @@ def _parse_include_router(node: ast.Call, imports: dict[str, str], default_prefi
     if not imported_module:
         return None
     return imported_module, include_prefix
+
+
+# 입력: router_file(Path) - 경고 메시지에 쓸 파일명, prefix(str) - 상위에서 내려온 prefix, router_prefix(str) - 코드상 prefix
+# 출력: None - 매니페스트 prefix와 코드 prefix가 동시에 존재하면 경고를 출력
+def _warn_if_duplicate_prefix(router_file: Path, prefix: str, router_prefix: str) -> None:
+    # !!경고:코드와 매니페스트에 둘다 prefix를 작성하면 경로가 중첩됩니다.
+    if prefix and router_prefix:
+        print(f"[경고] {router_file.name}: 매니페스트 prefix({prefix})와 코드 prefix({router_prefix})가 둘다 기재되어 경로가 {prefix}{router_prefix}로 등록됩니다.")
+
+
+# 입력: node(ast.Call) - 검사할 호출 노드, router_file(Path) - 현재 파싱 중인 라우터 파일,
+#       module_base_dir(Path | None) - 하위 모듈 탐색 기준 디렉터리, prefix(str) - 상위에서 내려온 prefix,
+#       router_prefix(str) - 현재 파일의 APIRouter prefix, imports(dict[str, str]) - alias 대 모듈 경로 매핑
+# 출력: list[str] - 이 노드에서 얻어지는 경로 목록 (route 등록이면 자기 경로 1개, include_router면 재귀 수집 결과,
+#       해당 없으면 빈 리스트)
+def _handle_route_node(node: ast.Call, router_file: Path, module_base_dir: Path | None,
+                        prefix: str, router_prefix: str, imports: dict[str, str]) -> list[str]:
+    route_path = _parse_api_route(node)
+    if route_path is not None:
+        _warn_if_duplicate_prefix(router_file, prefix, router_prefix)
+        return [_join_route_path(_join_route_path(prefix, router_prefix), route_path)] # 예시auth/login
+
+    included = _parse_include_router(node, imports, router_prefix)
+    if included is None:
+        return []
+    imported_module, include_prefix = included
+    resolved = _resolve_imported_module(imported_module, router_file, module_base_dir)
+    if resolved is None:
+        return []
+    return _collect_router_paths(resolved, module_base_dir=module_base_dir,
+                                  prefix=_join_route_path(prefix, include_prefix))
 
 
 # 입력: router_file(Path) - 파싱할 라우터 파일, module_base_dir(Path | None) - 하위 모듈 탐색 기준 디렉터리,
@@ -202,26 +244,8 @@ def _collect_router_paths(router_file: Path, module_base_dir: Path | None = None
     for node in ast.walk(tree):
         #@router.get("/path"),하위 라우터 연결@router.include_router("modules.module_name")은 call 속성이 있다.
         #call이 아니면 패스한다.
-        if not isinstance(node, ast.Call):
-            continue
-
-        route_path = _parse_api_route(node)
-        if route_path is not None:
-            paths.append(_join_route_path(_join_route_path(prefix, router_prefix), route_path)) # 예시auth/login
-
-            # !!경고:코드와 매니페스트에 둘다 prefix를 작성하면 경로가 중첩됩니다.
-            if prefix and router_prefix:
-                print(f"[경고] {router_file.name}: 매니페스트 prefix({prefix})와 코드 prefix({router_prefix})가 둘다 기재되어 경로가 {prefix}{router_prefix}로 등록됩니다.")
-            continue
-
-        included = _parse_include_router(node, imports, router_prefix)
-        if included is not None:
-            imported_module, include_prefix = included
-            resolved = _resolve_imported_module(imported_module, router_file, module_base_dir)
-            if resolved:
-                paths.extend(_collect_router_paths(resolved, module_base_dir=module_base_dir,
-                                                   prefix=_join_route_path(prefix, include_prefix)))
-            continue
+        if isinstance(node, ast.Call):
+            paths.extend(_handle_route_node(node, router_file, module_base_dir, prefix, router_prefix, imports))
 
     return paths
 
@@ -247,6 +271,39 @@ def _resolve_candidate_files(name: str, r: RouterSpec, modules_dir: Path | None)
     return candidate_files, module_base_dir
 
 
+# 입력: name(str) - 모듈명, r(RouterSpec) - 모듈의 라우터 사양, modules_dir(Path | None) - 모듈 파일들이 위치한 디렉터리
+# 출력: list[str] - 이 라우터에서 등록되는 정규화된("/"로 시작하는) 전체 경로 목록
+def _collect_paths_for_router(name: str, r: RouterSpec, modules_dir: Path | None) -> list[str]:
+    prefix = r.prefix.rstrip("/") if r.prefix else ""
+    candidate_files, module_base_dir = _resolve_candidate_files(name, r, modules_dir)
+
+    paths: list[str] = []
+    for candidate in candidate_files:
+        paths.extend(_collect_router_paths(candidate, module_base_dir=module_base_dir, prefix=prefix))
+    if not paths and prefix:
+        paths = [prefix]
+
+    return [path if path.startswith("/") else f"/{path}" for path in paths]
+
+
+# 입력: seen(dict[str, str]) - 등록된 경로 대 모듈명 매핑(누적 상태, 새 경로는 in-place로 등록), name(str) - 현재 모듈명,
+#       path(str) - 정규화된 등록 경로
+# 출력: Conflict | None - 경로가 이미 등록되어 있으면 충돌 정보, 아니면 None
+def _register_path(seen: dict[str, str], name: str, path: str) -> Conflict | None:
+    if path not in seen:
+        seen[path] = name
+        return None
+
+    existing_module = seen[path]
+    suggestion = f"{name} 모듈의 라우트 prefix를 바꾸거나, {existing_module} 모듈과 경로를 분리해 주세요."
+    return Conflict(
+        kind="route", subject=path,
+        detail=f"{path}: {existing_module} vs {name} | {DEFAULT_ROUTE_REASON}",
+        modules=[existing_module, name],
+        suggestion=suggestion,
+    )
+
+
 # 입력: ordered(list[str]) - 정렬된 모듈 목록, manifests(dict[str, ModuleManifest]) - 모듈 매니페스트,
 #       modules_dir(Path | None) - 모듈 파일들이 위치한 디렉터리
 # 출력: list[Conflict] - 실제 등록 경로가 중복되는 라우트 충돌 목록
@@ -257,34 +314,8 @@ def check_routes(ordered: list[str], manifests: dict[str, ModuleManifest], modul
 
     for name in ordered:
         for r in manifests[name].routers:
-            prefix = r.prefix.rstrip("/") if r.prefix else ""
-            candidate_files, module_base_dir = _resolve_candidate_files(name, r, modules_dir)
-
-            paths: list[str] = []
-            for candidate in candidate_files:
-                paths.extend(_collect_router_paths(candidate, module_base_dir=module_base_dir, prefix=prefix))
-            if not paths and prefix:
-                paths = [prefix]
-
-            for full_path in paths:
-                normalized_path = full_path if full_path.startswith("/") else f"/{full_path}"
-                if normalized_path in seen:
-                    existing_module = seen[normalized_path]
-                    suggestion = (
-                        f"{name} 모듈의 라우트 prefix를 바꾸거나, {existing_module} 모듈과 경로를 분리해 주세요."
-                    )
-                    conflicts.append(Conflict(
-                        kind="route", subject=normalized_path,
-                        detail=(
-                            f"{normalized_path}: {existing_module} vs {name} | "
-                            f"{DEFAULT_ROUTE_REASON}"
-                        ),
-                        modules=[existing_module, name],
-                        suggestion=suggestion,
-                    ))
-                else:
-                    seen[normalized_path] = name
+            for path in _collect_paths_for_router(name, r, modules_dir):
+                conflict = _register_path(seen, name, path)
+                if conflict is not None:
+                    conflicts.append(conflict)
     return conflicts
-
-# TODO [3.2.3] DB 스키마 충돌 감지 — 모델 파일의 테이블명 수집 후 중복 검사
-# TODO [3.3]   해결안 제시(prefix 변경, 변수 접두사 등) — CLI 파트와 협의 후 구현
