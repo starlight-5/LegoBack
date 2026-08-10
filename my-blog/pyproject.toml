@@ -4,7 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.13",
-    "bcrypt>=4.0,<=4.1",
+    "bcrypt>=4.0,<4.1",
     "email-validator>=2.0",
     "fastapi>=0.115",
     "passlib[bcrypt]>=1.7",
