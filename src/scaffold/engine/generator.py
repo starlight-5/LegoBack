@@ -8,6 +8,7 @@ import shutil
 
 from jinja2 import Environment, FileSystemLoader
 from packaging.requirements import Requirement
+from packaging.version import Version
 
 from .errors import DuplicateFileError
 from .manifest import EnvVar, ModuleManifest
@@ -25,18 +26,65 @@ def _env() -> Environment:
     )
 
 
+def _merge_specifiers(specifiers: list[str]) -> str:
+    """버전 제약 조건을 하나의 현실적인 문자열로 합친다."""
+    if not specifiers:
+        return ""
+
+    lower_bounds: list[tuple[str, Version]] = []
+    upper_bounds: list[tuple[str, Version]] = []
+    exact_versions: list[Version] = []
+    for raw in specifiers:
+        if raw.startswith(">="):
+            lower_bounds.append((">=", Version(raw[2:])))
+        elif raw.startswith(">"):
+            lower_bounds.append((">", Version(raw[1:])))
+        elif raw.startswith("<="):
+            upper_bounds.append(("<=", Version(raw[2:])))
+        elif raw.startswith("<"):
+            upper_bounds.append(("<", Version(raw[1:])))
+        elif raw.startswith("=="):
+            exact_versions.append(Version(raw[2:]))
+        else:
+            return ",".join(sorted(specifiers))
+
+    if exact_versions:
+        if len(set(exact_versions)) != 1:
+            return ""
+        return f"=={exact_versions[0]}"
+
+    parts: list[str] = []
+    if lower_bounds:
+        _, best = max(lower_bounds, key=lambda item: item[1])
+        parts.append(f">={best}")
+    if upper_bounds:
+        _, best = min(upper_bounds, key=lambda item: item[1])
+        parts.append(f"<={best}")
+    return ",".join(parts)
+
+
 def merge_packages(ordered: list[str], manifests: dict[str, ModuleManifest]) -> list[str]:
-    """[2.4.2] pip_packages 병합: 중복 제거, 같은 패키지의 버전 범위는 결합."""
-    merged: dict[str, set[str]] = {}
+    """[2.4.2] pip_packages 병합: 같은 패키지의 버전 범위는 교집합으로 정리한다."""
+    merged: dict[str, list[str]] = {}
     for raw in BASE_PACKAGES:
         req = Requirement(raw)
-        merged.setdefault(req.name, set()).update(str(s) for s in req.specifier)
+        extras = f"[{','.join(sorted(req.extras))}]" if req.extras else ""
+        key = req.name + extras
+        merged.setdefault(key, []).extend(str(s) for s in req.specifier)
     for name in ordered:
         for raw in manifests[name].pip_packages:
             req = Requirement(raw)
             extras = f"[{','.join(sorted(req.extras))}]" if req.extras else ""
-            merged.setdefault(req.name + extras, set()).update(str(s) for s in req.specifier)
-    return [pkg + ",".join(sorted(specs)) for pkg, specs in sorted(merged.items())]
+            key = req.name + extras
+            merged.setdefault(key, []).extend(str(s) for s in req.specifier)
+    rendered: list[str] = []
+    for pkg, specs in sorted(merged.items()):
+        spec_str = _merge_specifiers(specs)
+        if spec_str:
+            rendered.append(f"{pkg}{spec_str}")
+        else:
+            rendered.append(pkg)
+    return rendered
 
 
 def create_skeleton(project_dir: Path, project_name: str,

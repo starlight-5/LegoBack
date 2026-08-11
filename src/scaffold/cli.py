@@ -158,7 +158,9 @@ def _check_conflicts(ordered: list[str], env_pairs, manifests: dict) -> None:
         return
     for c in found:
         ui.warn(f"[{c.kind}] {c.subject}: {c.detail}")
-    ui.err("충돌이 해결되지 않아 중단합니다.", "TODO [3.3]: 해결안 제시 기능 구현 예정")
+        if c.suggestion:
+            typer.echo(f"  제안: {c.suggestion}")
+    ui.err("충돌이 해결되지 않아 중단합니다.", "모듈 선택을 바꾸거나, 충돌하는 항목을 수정한 뒤 다시 시도해 주세요.")
     raise typer.Exit(1)
 
 
