@@ -19,7 +19,7 @@ from scaffold.engine import conflicts as cf
 from scaffold.engine.errors import AIConnectionError, ScaffoldError
 from scaffold.engine.generator import generate
 from scaffold.engine.loader import load_manifests
-from scaffold.engine.resolver import collect_env, resolve
+from scaffold.engine.resolver import collect_env, collect_options, filter_manifests, resolve
 
 load_dotenv()  # GEMINI_API_KEY 등을 .env에서 자동 로드
 
@@ -133,15 +133,25 @@ def _choose_modules(result: AnalysisResult, manifests: dict) -> list[str]:
 
 
 # 입력: selected(list[str]) - 사용자가 선택한 모듈 목록, manifests(dict) - 모듈 매니페스트
-# 출력: tuple(ordered, env_pairs) - 의존성까지 포함해 정렬된 모듈 목록, 수집된 환경변수 목록
-def _resolve_dependencies(selected: list[str], manifests: dict):
-    """[2.2.2~2.2.3] 의존성 확장·정렬 + 환경 변수 수집."""
+# 출력: list[str] - 의존성까지 포함해 정렬된 모듈 목록
+def _resolve_dependencies(selected: list[str], manifests: dict) -> list[str]:
+    """[2.2.2] 의존성 확장·정렬."""
     ordered = resolve(selected, manifests)
     added = [m for m in ordered if m not in selected]
     if added:
         typer.echo("  의존성으로 자동 포함: " + ", ".join(added))
-    env_pairs = collect_env(ordered, manifests)
-    return ordered, env_pairs
+    return ordered
+
+
+# 입력: ordered(list[str]) - 정렬된 모듈 목록, manifests(dict) - 모듈 매니페스트
+# 출력: dict[str, str] - 옵션 이름 → 사용자가 고른 값 (예: {"db_type": "mongodb"})
+def _ask_options(ordered: list[str], manifests: dict) -> dict[str, str]:
+    """[신규] ordered 모듈들이 선언한 옵션을 이름 기준으로 합쳐 한 번씩만 질문."""
+    options = collect_options(ordered, manifests)
+    answers: dict[str, str] = {}
+    for name, opt in options.items():
+        answers[name] = ui.select_option(opt.question, opt.choices, opt.default)
+    return answers
 
 
 # 입력: ordered(list[str]) - 정렬된 모듈 목록, env_pairs - 수집된 환경변수,
@@ -150,9 +160,9 @@ def _resolve_dependencies(selected: list[str], manifests: dict):
 def _check_conflicts(ordered: list[str], env_pairs, manifests: dict) -> None:
     """[3.x] 버전·환경변수·라우트 충돌 검사. 발견되면 안내 후 중단."""
     found = (
-        cf.check_versions(ordered, manifests)
-        + cf.check_env(env_pairs)
-        + cf.check_routes(ordered, manifests)
+        cf.check_versions(ordered, manifests) # 패키지 버전 충돌
+        + cf.check_env(env_pairs) # 환경변수 충돌
+        + cf.check_routes(ordered, manifests) # 라우트 충돌
     )
     if not found:
         return
@@ -202,13 +212,17 @@ def run_init_flow(project_name: str, project_dir: Path, verbose: bool) -> None:
     selected = _choose_modules(result, manifests)                    # [2.1]
 
     with ui.step("의존성 해석 중..."):
-        ordered, env_pairs = _resolve_dependencies(selected, manifests)  # [2.2]
+        ordered = _resolve_dependencies(selected, manifests)          # [2.2.2]
+
+    option_answers = _ask_options(ordered, manifests)                 # [신규] db_type 등 옵션 질문
+    filtered = filter_manifests(manifests, option_answers)             # [신규] when 조건 필터링
+    env_pairs = collect_env(ordered, filtered)                        # [2.2.3]
 
     with ui.step("충돌 검사 중..."):
-        _check_conflicts(ordered, env_pairs, manifests)                  # [3.x]
+        _check_conflicts(ordered, env_pairs, filtered)                  # [3.x]
 
     with ui.step("프로젝트 생성 중..."):
-        generate(project_dir, project_name, ordered, manifests, MODULES_DIR, env_pairs)
+        generate(project_dir, project_name, ordered, filtered, MODULES_DIR, env_pairs)
 
     _print_success(project_name, ordered)                            # [4.4.2]
 

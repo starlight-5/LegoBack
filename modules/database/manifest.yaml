@@ -6,6 +6,7 @@ depends_on:
 files:
   - src: files/src/core/db.py
     dest: src/core/db.py
+    when : { "db_type" : ["postgresql"] }
 pip_packages:
   - sqlalchemy>=2.0
   - alembic>=1.13
@@ -26,4 +27,8 @@ docker_services:
     volumes:
       - db-data:/var/lib/postgresql/data
 options:
-  db_type: postgresql   # TODO [회의]: mysql/sqlite 선택 지원
+  db_type:
+    question: "사용할 데이터베이스 종류를 선택하세요"
+    choices: [postgresql]
+    default: postgresql
+    # TODO [회의]: mysql/supabase/mongodb choices 추가는 후속 작업(C파트)

@@ -4,7 +4,7 @@
 from graphlib import CycleError, TopologicalSorter
 
 from .errors import CircularDependencyError, ScaffoldError
-from .manifest import EnvVar, ModuleManifest
+from .manifest import EnvVar, ModuleManifest, ModuleOption, when_matches
 
 
 def resolve(selected: list[str], manifests: dict[str, ModuleManifest]) -> list[str]:
@@ -39,3 +39,39 @@ def collect_env(ordered: list[str], manifests: dict[str, ModuleManifest]) -> lis
         for var in manifests[name].env_vars:
             out.append((name, var))
     return out
+
+
+def collect_options(ordered: list[str], manifests: dict[str, ModuleManifest]) -> dict[str, ModuleOption]:
+    """[신규] ordered 모듈들이 선언한 옵션을 이름 기준으로 모은다 (질문할 목록).
+
+    같은 이름의 옵션은 load_manifests()에서 이미 choices 일치가 검증됐으므로,
+    여기서는 처음 발견된 선언 하나만 취하면 된다.
+    """
+    out: dict[str, ModuleOption] = {}
+    for name in ordered:
+        for opt_name, opt in manifests[name].options.items():
+            out.setdefault(opt_name, opt)
+    return out
+
+
+def filter_manifest(manifest: ModuleManifest, option_answers: dict[str, str]) -> ModuleManifest:
+    """[신규] when 조건에 안 맞는 files/routers/env_vars/pip_packages/docker_services 항목을 제거한 사본."""
+    return manifest.model_copy(update={
+        "files": [f for f in manifest.files if when_matches(f.when, option_answers)],
+        "routers": [r for r in manifest.routers if when_matches(r.when, option_answers)],
+        "env_vars": [e for e in manifest.env_vars if when_matches(e.when, option_answers)],
+        "pip_packages": [
+            p for p in manifest.pip_packages
+            if when_matches(None if isinstance(p, str) else p.when, option_answers)
+        ],
+        "docker_services": {
+            name: svc for name, svc in manifest.docker_services.items()
+            if when_matches(svc.when, option_answers)
+        },
+    })
+
+
+def filter_manifests(manifests: dict[str, ModuleManifest],
+                      option_answers: dict[str, str]) -> dict[str, ModuleManifest]:
+    """[신규] 전체 매니페스트 딕셔너리에 filter_manifest를 적용한 사본."""
+    return {name: filter_manifest(m, option_answers) for name, m in manifests.items()}

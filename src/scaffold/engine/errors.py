@@ -32,6 +32,39 @@ class DuplicateFileError(ScaffoldError):
         )
 
 
+class OptionMismatchError(ScaffoldError):
+    """[신규] 같은 옵션 이름인데 모듈마다 choices가 다른 경우."""
+
+    def __init__(self, option: str, mod_a: str, choices_a: list[str], mod_b: str, choices_b: list[str]):
+        super().__init__(
+            "E-OPTMISMATCH",
+            f"옵션 '{option}'의 선택지가 다릅니다: {mod_a}={choices_a} vs {mod_b}={choices_b}",
+            "두 모듈의 manifest.yaml에서 options의 choices를 동일하게 맞춰주세요.",
+        )
+
+
+class UnknownWhenKeyError(ScaffoldError):
+    """[신규] when 절이 참조하는 옵션 이름이 어느 모듈에도 선언되어 있지 않은 경우."""
+
+    def __init__(self, module: str, key: str):
+        super().__init__(
+            "E-UNKNOWNWHEN",
+            f"{module} 모듈의 when에 쓰인 옵션 '{key}'가 어느 모듈에도 선언되어 있지 않습니다.",
+            "옵션 이름 오타를 확인하거나, 해당 옵션을 선언하는 모듈의 manifest.yaml에 options를 추가하세요.",
+        )
+
+
+class UnusedOptionError(ScaffoldError):
+    """[신규] options로 선언됐지만 어느 when 절에서도 참조되지 않는 옵션."""
+
+    def __init__(self, module: str, option: str):
+        super().__init__(
+            "E-UNUSEDOPT",
+            f"{module} 모듈이 선언한 옵션 '{option}'을 참조하는 when 절이 어디에도 없습니다.",
+            "해당 옵션을 사용하는 when 절을 추가하거나, 아직 쓸 곳이 없으면 options 선언을 지워주세요.",
+        )
+
+
 class AIConnectionError(ScaffoldError):
     """[1.2.1] Gemini 호출 실패 (키 없음·패키지 미설치·네트워크·파싱 오류 등)."""
 
