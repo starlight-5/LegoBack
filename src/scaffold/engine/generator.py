@@ -11,7 +11,7 @@ from packaging.requirements import Requirement
 from packaging.version import Version
 
 from .errors import DuplicateFileError
-from .manifest import EnvVar, ModuleManifest
+from .manifest import EnvVar, ModuleManifest, package_requirement
 
 TEMPLATES_DIR = Path(__file__).resolve().parents[3] / "templates"
 BASE_PACKAGES = ["fastapi>=0.115", "uvicorn[standard]>=0.30"]
@@ -73,7 +73,7 @@ def merge_packages(ordered: list[str], manifests: dict[str, ModuleManifest]) -> 
         merged.setdefault(key, []).extend(str(s) for s in req.specifier)
     for name in ordered:
         for raw in manifests[name].pip_packages:
-            req = Requirement(raw)
+            req = Requirement(package_requirement(raw))
             extras = f"[{','.join(sorted(req.extras))}]" if req.extras else ""
             key = req.name + extras
             merged.setdefault(key, []).extend(str(s) for s in req.specifier)

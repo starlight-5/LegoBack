@@ -15,7 +15,7 @@ DEFAULT_VERSION_REASON = "교집합이 없어 자동 해결이 불가능합니�
 DEFAULT_ROUTE_REASON = "라우트 경로가 중복되어 충돌합니다."
 DEFAULT_ENV_REASON = "환경변수 기본값이 서로 달라 충돌합니다."
 
-from scaffold.engine.manifest import EnvVar, ModuleManifest, RouterSpec
+from scaffold.engine.manifest import EnvVar, ModuleManifest, RouterSpec, package_requirement
 
 @dataclass
 class Conflict:
@@ -33,7 +33,7 @@ def check_versions(ordered: list[str], manifests: dict[str, ModuleManifest]) -> 
     wanted: dict[str, list[tuple[str, SpecifierSet]]] = {}
     for name in ordered:
         for raw in manifests[name].pip_packages:
-            req = Requirement(raw)
+            req = Requirement(package_requirement(raw))
             wanted.setdefault(req.name, []).append((name, req.specifier))
             #패키지를 사용하는 모듈명과 버전
     conflicts: list[Conflict] = []

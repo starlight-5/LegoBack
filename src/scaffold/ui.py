@@ -70,6 +70,14 @@ def select_modules(recommended: list[str], all_modules: list[str],
     return answer or []
 
 
+# 입력: question(str) - 질문 문구, choices(list[str]) - 선택지, default(str | None) - 기본 선택값
+# 출력: str - 사용자가 고른 선택지 (취소 시 KeyboardInterrupt 전파)
+def select_option(question: str, choices: list[str], default: str | None = None) -> str:
+    """[신규] 화살표 키로 하나만 고르는 단일 선택 질문 (모듈 옵션용, 예: DB 종류)."""
+    _ensure_questionary()
+    return questionary.select(question, choices=choices, default=default).unsafe_ask()
+
+
 # 입력: message(str) - 확인 메시지
 # 출력: bool - 사용자의 Y/N 응답 (기본값 Y)
 def confirm(message: str) -> bool:
