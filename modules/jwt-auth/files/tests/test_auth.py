@@ -31,12 +31,16 @@ def _override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = _override_get_db
 client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
 def _clean_db():
+    # get_db 오버라이드를 매 테스트 직전에 다시 지정한다 — 다른 테스트 파일도
+    # 같은 src.main.app에 자기 own DB로 오버라이드를 걸어두면, 임포트 순서상
+    # 나중에 임포트된 파일의 오버라이드가 이 파일 테스트 실행 시점까지 남아있을
+    # 수 있다 (module import는 한 번만 실행되고 캐시되므로).
+    app.dependency_overrides[get_db] = _override_get_db
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
@@ -59,6 +63,19 @@ def test_signup_hashes_password_not_plaintext():
     db.close()
     assert user.hashed_password != "pw12345"
     assert user.hashed_password.startswith("$2b$")
+
+
+def test_first_signup_becomes_admin():
+    res = client.post("/auth/signup", json={"email": "first@b.c", "password": "pw12345"})
+    payload = jwt.decode(res.json()["access_token"], "test-secret-key", algorithms=[ALGORITHM])
+    assert payload["role"] == "ADMIN"
+
+
+def test_second_signup_stays_user():
+    client.post("/auth/signup", json={"email": "first2@b.c", "password": "pw12345"})
+    res = client.post("/auth/signup", json={"email": "second2@b.c", "password": "pw12345"})
+    payload = jwt.decode(res.json()["access_token"], "test-secret-key", algorithms=[ALGORITHM])
+    assert payload["role"] == "USER"
 
 
 def test_signup_duplicate_email_rejected():
