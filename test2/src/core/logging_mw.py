@@ -3,18 +3,17 @@
 모든 HTTP 요청의 메서드, 경로, 상태 코드, 처리 시간을 기록한다.
 
 환경 변수:
-LOG_LEVEL: 로그 레벨. 기본값은 INFO.
-DEBUG, INFO, WARNING, ERROR, CRITICAL 등을 사용할 수 있다.
+    LOG_LEVEL: 로그 레벨. 기본값은 INFO.
+              DEBUG, INFO, WARNING, ERROR, CRITICAL 등을 사용할 수 있다.
 
 등록:
-manifest.yaml의 registrations에 선언된
-`src.core.logging_mw.apply`를 엔진이 main.py에서 호출한다.
+    manifest.yaml의 registrations에 선언된
+    ``src.core.logging_mw.apply``를 엔진이 main.py에서 호출한다.
 """
 
 import logging
 import os
 import time
-from logging.handlers import TimedRotatingFileHandler
 
 from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -38,33 +37,15 @@ def _configure_logging() -> None:
 
     os.makedirs("logs", exist_ok=True)
 
-    formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    )
-
-    # 콘솔 출력
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-
-    # 일반 애플리케이션 로그
-    file_handler = TimedRotatingFileHandler(
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         filename="logs/app.log",
-        when="midnight",
-        interval=1,
-        backupCount=30,
         encoding="utf-8",
     )
-    file_handler.setFormatter(formatter)
 
-    root_logger = logging.getLogger()
-    root_logger.setLevel(level)
-
-    # logging 설정이 여러 번 실행될 경우
-    # handler가 중복 등록되는 것을 방지한다.
-    root_logger.handlers.clear()
-
-    root_logger.addHandler(console_handler)
-    root_logger.addHandler(file_handler)
+    # root logger의 레벨도 명시적으로 설정한다.
+    logging.getLogger().setLevel(level)
 
 
 async def log_requests(
@@ -79,8 +60,16 @@ async def log_requests(
         response = await call_next(request)
 
     except Exception:
-        # 실제 예외 내용과 traceback은 exceptions.py에서 처리한다.
-        # 여기서는 예외 로그를 중복 기록하지 않고 다시 전달한다.
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        logger.exception(
+            "%s %s → 500 (%.1fms)",
+            request.method,
+            request.url.path,
+            elapsed_ms,
+        )
+
+        # 예외는 여기서 처리하지 않고 FastAPI의 예외 처리기로 전달한다.
         raise
 
     elapsed_ms = (time.perf_counter() - start) * 1000
@@ -100,8 +89,5 @@ def apply(app: FastAPI) -> None:
     """FastAPI 애플리케이션에 logging 모듈을 등록한다."""
 
     _configure_logging()
+    app.add_middleware(BaseHTTPMiddleware, dispatch=log_requests)
 
-    app.add_middleware(
-        BaseHTTPMiddleware,
-        dispatch=log_requests,
-    )
