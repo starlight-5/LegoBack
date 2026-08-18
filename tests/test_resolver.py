@@ -37,6 +37,6 @@ def test_collect_env_order():
     pairs = collect_env(ordered, filtered)
     names = [v.name for _, v in pairs]
     assert names == [
-        "APP_ENV", "DATABASE_URL",
+        "APP_ENV", "DATABASE_URL", "DB_PORT",
         "JWT_SECRET_KEY", "JWT_ACCESS_MINUTES", "JWT_REFRESH_MINUTES",
     ]

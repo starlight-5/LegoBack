@@ -185,6 +185,7 @@ def _run(cmd: list[str], cwd: Path) -> bool:
     """[신규] 서브프로세스 실행 + 실패 시 경고로 대체. 스피너와 출력이 섞이지 않도록 캡처."""
     try:
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+                                 encoding="utf-8", errors="replace",
                                  timeout=_SETUP_TIMEOUT_SEC)
     except subprocess.TimeoutExpired:
         ui.warn(f"'{' '.join(cmd)}' 실행이 {_SETUP_TIMEOUT_SEC}초를 넘겨 중단했습니다.")
@@ -239,39 +240,48 @@ def _print_success(project_name: str, ordered: list[str], setup_ok: bool) -> Non
 # 출력: 없음 (전체 흐름을 순서대로 실행해 프로젝트 파일을 생성)
 def run_init_flow(project_name: str, project_dir: Path, verbose: bool) -> None:
     """[4.1.4] 전체 여정의 지휘자. 각 단계 구현은 해당 파트 몫."""
+    #  1. 모든 모듈의 매니페스트를 불러온다.
     manifests = load_manifests(MODULES_DIR)
-
+    # 2. 프로젝트 설명을 입력받는다.
     desc = _normalize(typer.prompt(
         "어떤 프로젝트인가요? (민감 정보는 입력하지 마세요)"))  # [1.1.1~1.1.2]
 
     try:
+        # 3. 입력받은 프로젝트 설명으로 모듈을 분석한다.
         with ui.step("자연어 분석 중..."):
             result = analyze(desc, manifests)                             # [1.2]
+        # 4. 프로젝트 설명을 보충하고, 모듈을 추천한다.
         desc, result = _ask_clarifying_round(desc, result, manifests)    # [1.1.3]
         _print_recommendations(result)                                   # [1.3.4]
     except AIConnectionError:
         ui.warn("AI 연결에 실패하여 전체 모듈 선택 목록으로 이동합니다.")
         result = AnalysisResult()                                        # 추천 없이 빈 결과로 선택 화면 진행
 
+    # 5. 모듈을 선택한다.
     selected = _choose_modules(result, manifests)                    # [2.1]
-
+    # 6. 모듈 의존성을 해석한다.
     with ui.step("의존성 해석 중..."):
         ordered = _resolve_dependencies(selected, manifests)          # [2.2.2]
 
+    # 7. 모듈 옵션을 질문한다.
     option_answers = _ask_options(ordered, manifests)                 # [신규] db_type 등 옵션 질문
     selected_manifests = {name: manifests[name] for name in ordered}
+    # 8. when 조건에 따라 모듈을 필터링한다.
     filtered = filter_manifests(selected_manifests, option_answers)   # [신규] when 조건 필터링
+    # 9. 환경변수를 수집한다.
     env_pairs = collect_env(ordered, filtered)                        # [2.2.3]
 
+    # 10. 충돌 검사를 한다.
     with ui.step("충돌 검사 중..."):
         _check_conflicts(ordered, env_pairs, filtered)                  # [3.x]
-
+    # 11. 프로젝트를 생성한다.
     with ui.step("프로젝트 생성 중..."):
         generate(project_dir, project_name, ordered, filtered, MODULES_DIR, env_pairs)
-
+    # 12. 도커가 있다면 이미지를 빌드한다. 아니면 가상환경 설치 후 패키지를 설치한다.
     with ui.step("Docker 이미지 빌드 중..." if "docker" in ordered else "패키지 설치 중..."):
         setup_ok = _run_setup(project_dir, ordered)                   # [신규] 준비 단계 자동 실행
 
+    # 13. 완료 안내 및 다음 실행 명령을 출력한다.
     _print_success(project_name, ordered, setup_ok)                  # [4.4.2]
 
 

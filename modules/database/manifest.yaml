@@ -39,11 +39,19 @@ env_vars:
     default: ""
     description: Supabase 프로젝트의 Connection string (Project Settings > Database > Connection string, PostgreSQL 형식)을 그대로 붙여넣으세요
     when: { "db_type": ["supabase"] }
+  - name: DB_PORT
+    default: "5432"
+    description: postgres 컨테이너를 게시할 호스트 포트(로컬 DB 클라이언트로 직접 붙을 때 사용). 앱은 docker-compose 내부망의 db:5432로 접속하므로 이 값을 바꿔도 앱 동작엔 영향 없음 — 다른 프로젝트와 포트가 겹치면 이 값만 바꾸세요.
+    when: { "db_type": ["postgresql"] }
+  - name: DB_PORT
+    default: "3306"
+    description: mysql 컨테이너를 게시할 호스트 포트(로컬 DB 클라이언트로 직접 붙을 때 사용). 앱은 docker-compose 내부망의 db-mysql:3306으로 접속하므로 이 값을 바꿔도 앱 동작엔 영향 없음 — 다른 프로젝트와 포트가 겹치면 이 값만 바꾸세요.
+    when: { "db_type": ["mysql"] }
 routers: []
 docker_services:
   db:
     image: postgres:16
-    ports: ["5432:5432"]
+    ports: ["${DB_PORT:-5432}:5432"]
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
@@ -53,7 +61,7 @@ docker_services:
     when: { "db_type": ["postgresql"] }
   db-mysql:
     image: mysql:8
-    ports: ["3306:3306"]
+    ports: ["${DB_PORT:-3306}:3306"]
     environment:
       MYSQL_ROOT_PASSWORD: app
       MYSQL_DATABASE: app

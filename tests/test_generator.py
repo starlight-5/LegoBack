@@ -98,6 +98,45 @@ def test_alembic_files_delivered(tmp_path):
     readme = (out / "README.md").read_text(encoding="utf-8")
     assert "alembic revision --autogenerate" in readme
 
+def test_named_volumes_declared_at_top_level(tmp_path):
+    """[신규] named volume(db-data 등)을 쓰는 서비스가 있으면 최상단 volumes:에도
+    선언돼야 한다 — 안 그러면 docker compose가 "undefined volume"으로 거부한다."""
+    out = _make(tmp_path, ["docker", "database"])
+    compose = (out / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "\nvolumes:\n  db-data:" in compose
+
+
+def test_docker_service_ports_are_env_overridable(tmp_path):
+    """[신규] db/db-mysql/redis 호스트 포트는 compose 변수(${..._PORT:-기본값})로 빠져있어
+    포트가 겹쳐도 .env 한 줄만 고치면 되고, .env에는 그 기본값이 채워진다."""
+    out = _make(tmp_path, ["docker", "database", "redis-cache"])
+    compose = (out / "docker-compose.yml").read_text(encoding="utf-8")
+    assert '"${DB_PORT:-5432}:5432"' in compose
+    assert '"${DB_PORT:-3306}:3306"' in compose
+    assert '"${REDIS_PORT:-6379}:6379"' in compose
+    env = (out / ".env").read_text(encoding="utf-8")
+    assert "REDIS_PORT=6379" in env
+
+
+
+def test_compose_project_name_unique_per_generation(tmp_path):
+    """[신규] docker-compose.yml에 매 생성마다 다른 프로젝트 이름이 박혀서, 폴더 이름이
+    같은 두 프로젝트라도 Compose의 볼륨/네트워크 네임스페이스가 겹치지 않는다."""
+    a = _make(tmp_path / "run1", ["docker"], "demo")
+    b = _make(tmp_path / "run2", ["docker"], "demo")
+
+    def _extract_name(compose_text: str) -> str:
+        for line in compose_text.splitlines():
+            if line.startswith("name:"):
+                return line.split(":", 1)[1].strip()
+        raise AssertionError("name: 줄을 못 찾음")
+
+    name_a = _extract_name((a / "docker-compose.yml").read_text(encoding="utf-8"))
+    name_b = _extract_name((b / "docker-compose.yml").read_text(encoding="utf-8"))
+    assert name_a != name_b
+    assert name_a.startswith("demo-") and name_b.startswith("demo-")
+>>>>>>> docker
+
 
 def test_registrations_wired(tmp_path):
     """[선택2] 등록 함수가 main.py에서 호출되는지 — 세 모듈 전부."""
