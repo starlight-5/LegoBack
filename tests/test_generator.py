@@ -85,6 +85,20 @@ def test_full_ten_module_generation(tmp_path):
     assert "DATABASE_URL" in env and "@db:5432" in env
 
 
+def test_alembic_files_delivered(tmp_path):
+    """[Alembic] database 모듈 선택 시 alembic.ini/migrations 셋업이 함께 배달된다."""
+    out = _make(tmp_path, ["database"])
+    assert (out / "alembic.ini").exists()
+    assert (out / "migrations" / "env.py").exists()
+    assert (out / "migrations" / "script.py.mako").exists()
+    assert (out / "migrations" / "versions").is_dir()
+    env_py = (out / "migrations" / "env.py").read_text(encoding="utf-8")
+    assert "Base.metadata" in env_py
+    assert "DATABASE_URL" in env_py
+    readme = (out / "README.md").read_text(encoding="utf-8")
+    assert "alembic revision --autogenerate" in readme
+
+
 def test_registrations_wired(tmp_path):
     """[선택2] 등록 함수가 main.py에서 호출되는지 — 세 모듈 전부."""
     out = _make(tmp_path, ["cors", "logging", "exception-handler"])
