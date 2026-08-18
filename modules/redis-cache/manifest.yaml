@@ -12,8 +12,11 @@ env_vars:
   - name: REDIS_URL
     default: redis://redis:6379/0
     description: Redis 접속 주소 (호스트명 redis = compose 서비스명)
+  - name: REDIS_PORT
+    default: "6379"
+    description: redis 컨테이너를 게시할 호스트 포트(로컬 클라이언트로 직접 붙을 때 사용). 앱은 docker-compose 내부망의 redis:6379로 접속하므로 이 값을 바꿔도 앱 동작엔 영향 없음 — 다른 프로젝트와 포트가 겹치면 이 값만 바꾸세요.
 routers: []
 docker_services:
   redis:
     image: redis:7
-    ports: ["6379:6379"]
+    ports: ["${REDIS_PORT:-6379}:6379"]
