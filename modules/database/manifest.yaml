@@ -7,6 +7,18 @@ files:
   - src: files/src/core/db.py
     dest: src/core/db.py
     when: { "db_type": ["postgresql", "mysql", "supabase"] }
+  - src: files/alembic.ini
+    dest: alembic.ini
+    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+  - src: files/migrations/env.py
+    dest: migrations/env.py
+    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+  - src: files/migrations/script.py.mako
+    dest: migrations/script.py.mako
+    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+  - src: files/migrations/versions/.gitkeep
+    dest: migrations/versions/.gitkeep
+    when: { "db_type": ["postgresql", "mysql", "supabase"] }
 pip_packages:
   - sqlalchemy>=2.0
   - alembic>=1.13
