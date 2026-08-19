@@ -135,7 +135,6 @@ def test_compose_project_name_unique_per_generation(tmp_path):
     name_b = _extract_name((b / "docker-compose.yml").read_text(encoding="utf-8"))
     assert name_a != name_b
     assert name_a.startswith("demo-") and name_b.startswith("demo-")
->>>>>>> docker
 
 
 def test_registrations_wired(tmp_path):
