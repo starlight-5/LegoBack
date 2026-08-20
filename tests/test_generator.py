@@ -7,7 +7,7 @@ from scaffold.engine.errors import DuplicateFileError
 from scaffold.engine.generator import copy_module_files, generate, merge_packages
 from scaffold.engine.loader import load_manifests
 from scaffold.engine.manifest import FileMapping, ModuleManifest
-from scaffold.engine.resolver import collect_env, resolve
+from scaffold.engine.resolver import collect_env, filter_manifests, resolve
 
 MODULES = Path(__file__).parents[1] / "modules"
 
@@ -15,8 +15,9 @@ MODULES = Path(__file__).parents[1] / "modules"
 def _make(tmp_path: Path, selected: list[str], name="demo") -> Path:
     m = load_manifests(MODULES)
     ordered = resolve(selected, m) if selected else []
+    filtered = filter_manifests(m, {"db_type": "postgresql"})
     out = tmp_path / name
-    generate(out, name, ordered, m, MODULES, collect_env(ordered, m))
+    generate(out, name, ordered, filtered, MODULES, collect_env(ordered, filtered))
     return out
 
 
@@ -75,8 +76,9 @@ def test_full_ten_module_generation(tmp_path):
     """10종 전체 선택 → 충돌 없이 생성, compose에 db·redis 서비스 포함."""
     m = load_manifests(MODULES)
     ordered = resolve(sorted(m), m)
+    filtered = filter_manifests(m, {"db_type": "postgresql"})
     out = tmp_path / "full"
-    generate(out, "full", ordered, m, MODULES, collect_env(ordered, m))
+    generate(out, "full", ordered, filtered, MODULES, collect_env(ordered, filtered))
     compose = (out / "docker-compose.yml").read_text(encoding="utf-8")
     assert "db:" in compose and "redis:" in compose and "depends_on" in compose
     assert (out / ".github" / "workflows" / "ci.yml").exists()
@@ -108,14 +110,27 @@ def test_named_volumes_declared_at_top_level(tmp_path):
 
 def test_docker_service_ports_are_env_overridable(tmp_path):
     """[신규] db/db-mysql/redis 호스트 포트는 compose 변수(${..._PORT:-기본값})로 빠져있어
-    포트가 겹쳐도 .env 한 줄만 고치면 되고, .env에는 그 기본값이 채워진다."""
-    out = _make(tmp_path, ["docker", "database", "redis-cache"])
-    compose = (out / "docker-compose.yml").read_text(encoding="utf-8")
-    assert '"${DB_PORT:-5432}:5432"' in compose
-    assert '"${DB_PORT:-3306}:3306"' in compose
-    assert '"${REDIS_PORT:-6379}:6379"' in compose
-    env = (out / ".env").read_text(encoding="utf-8")
-    assert "REDIS_PORT=6379" in env
+    포트가 겹쳐도 .env 한 줄만 고치면 되고, .env에는 그 기본값이 채워진다.
+
+    db_type은 실제로는 한 프로젝트에 하나만 선택되므로(postgresql/mysql이 동시에
+    같이 들어가는 조합은 없음), 각각 따로 생성해서 확인한다."""
+    m = load_manifests(MODULES)
+    ordered = resolve(["docker", "database", "redis-cache"], m)
+
+    pg = filter_manifests(m, {"db_type": "postgresql"})
+    out_pg = tmp_path / "pg"
+    generate(out_pg, "pg", ordered, pg, MODULES, collect_env(ordered, pg))
+    compose_pg = (out_pg / "docker-compose.yml").read_text(encoding="utf-8")
+    assert '"${DB_PORT:-5432}:5432"' in compose_pg
+    assert '"${REDIS_PORT:-6379}:6379"' in compose_pg
+    env_pg = (out_pg / ".env").read_text(encoding="utf-8")
+    assert "REDIS_PORT=6379" in env_pg
+
+    mysql = filter_manifests(m, {"db_type": "mysql"})
+    out_mysql = tmp_path / "mysql"
+    generate(out_mysql, "mysql", ordered, mysql, MODULES, collect_env(ordered, mysql))
+    compose_mysql = (out_mysql / "docker-compose.yml").read_text(encoding="utf-8")
+    assert '"${DB_PORT:-3306}:3306"' in compose_mysql
 
 
 
