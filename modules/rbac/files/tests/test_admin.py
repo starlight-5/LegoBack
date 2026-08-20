@@ -1,53 +1,13 @@
 """관리자 승격 엔드포인트(PATCH /admin/users/{email}/promote) 실제 동작 테스트 (rbac 모듈)."""
-import os
-
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
-
 from datetime import datetime, timedelta, timezone
 
-import pytest
-from fastapi.testclient import TestClient
 from jose import jwt
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from src.core.db import Base, get_db
-from src.main import app
+from conftest import TestingSessionLocal, client
 from src.models.user import User
 from src.routers.auth import ALGORITHM
 
 SECRET = "test-secret-key"
-
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def _override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _clean_db():
-    # get_db 오버라이드를 매 테스트 직전에 다시 지정한다 — jwt-auth의
-    # test_auth.py도 같은 src.main.app에 자기 own DB로 오버라이드를 걸어두므로,
-    # 모듈 최상단에서 한 번만 지정하면 나중에 임포트된 파일의 오버라이드가
-    # 이 파일 테스트 실행 시점까지 남아있을 수 있다.
-    app.dependency_overrides[get_db] = _override_get_db
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
 
 
 def _token(role: str, sub: str = "caller@b.c") -> str:

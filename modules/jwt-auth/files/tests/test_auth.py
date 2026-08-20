@@ -1,49 +1,8 @@
 """회원가입·로그인·토큰 재발급 실제 동작 테스트 (jwt-auth 모듈)."""
-import os
-
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
-
-import pytest
-from fastapi.testclient import TestClient
 from jose import jwt
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from src.core.db import Base, get_db
-from src.main import app
+from conftest import TestingSessionLocal, client
 from src.routers.auth import ALGORITHM
-
-# 실제 DATABASE_URL(Postgres) 없이도 검증 가능하도록 sqlite 메모리 DB로 get_db를 오버라이드.
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def _override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _clean_db():
-    # get_db 오버라이드를 매 테스트 직전에 다시 지정한다 — 다른 테스트 파일도
-    # 같은 src.main.app에 자기 own DB로 오버라이드를 걸어두면, 임포트 순서상
-    # 나중에 임포트된 파일의 오버라이드가 이 파일 테스트 실행 시점까지 남아있을
-    # 수 있다 (module import는 한 번만 실행되고 캐시되므로).
-    app.dependency_overrides[get_db] = _override_get_db
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
 
 
 def test_signup_returns_tokens():
