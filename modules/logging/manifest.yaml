@@ -1,7 +1,8 @@
 name: logging
 description: 요청 로깅 미들웨어
 category: quality
-depends_on: []
+depends_on:
+  - settings
 files:
   - src: files/src/core/logging_mw.py
     dest: src/core/logging_mw.py
