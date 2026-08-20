@@ -6,6 +6,8 @@ depends_on:
 files:
   - src: files/src/core/cache.py
     dest: src/core/cache.py
+  - src: files/tests/test_cache.py
+    dest: tests/test_cache.py
 pip_packages:
   - redis>=5.0
 env_vars:
