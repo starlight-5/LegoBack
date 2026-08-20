@@ -178,6 +178,7 @@ def write_docker(project_dir: Path, ordered: list[str],
     겹치지 않게 한다.
     """
     env = _env()
+    has_database = "database" in ordered
     services: list[tuple[str, object]] = []
     for name in ordered:
         for svc_name, svc in sorted(manifests[name].docker_services.items()):
@@ -185,10 +186,10 @@ def write_docker(project_dir: Path, ordered: list[str],
     (project_dir / "docker-compose.yml").write_text(
         env.get_template("docker-compose.yml.j2").render(
             services=services, named_volumes=_named_volumes(services),
-            compose_project_name=compose_project_name),
+            compose_project_name=compose_project_name, has_database=has_database),
         encoding="utf-8")
     (project_dir / "Dockerfile").write_text(
-        env.get_template("Dockerfile.j2").render(), encoding="utf-8")
+        env.get_template("Dockerfile.j2").render(has_database=has_database), encoding="utf-8")
 
 
 def generate(project_dir: Path, project_name: str, ordered: list[str],
