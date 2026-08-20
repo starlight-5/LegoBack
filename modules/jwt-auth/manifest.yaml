@@ -1,5 +1,5 @@
 name: jwt-auth
-description: 회원가입·로그인·토큰 재발급 (JWT)
+description: 회원가입·로그인·토큰 재발급 (JWT, SQL/MongoDB 둘 다 지원)
 category: auth
 depends_on:
   - settings
@@ -7,12 +7,25 @@ depends_on:
 files:
   - src: files/src/routers/auth.py
     dest: src/routers/auth.py
+    when: { "db_type": ["postgresql", "mysql", "supabase"] }
   - src: files/src/models/user.py
     dest: src/models/user.py
+    when: { "db_type": ["postgresql", "mysql", "supabase"] }
   - src: files/tests/test_auth.py
     dest: tests/test_auth.py
+    when: { "db_type": ["postgresql", "mysql", "supabase"] }
   - src: files/tests/conftest.py
     dest: tests/conftest.py
+    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+  - src: files/src/routers/auth_mongo.py
+    dest: src/routers/auth.py
+    when: { "db_type": ["mongodb"] }
+  - src: files/src/models/user_mongo.py
+    dest: src/models/user.py
+    when: { "db_type": ["mongodb"] }
+  - src: files/tests/test_auth_mongo.py
+    dest: tests/test_auth.py
+    when: { "db_type": ["mongodb"] }
 pip_packages:
   - python-jose[cryptography]>=3.3
   - passlib[bcrypt]>=1.7
