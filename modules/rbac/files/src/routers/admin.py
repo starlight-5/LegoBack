@@ -9,11 +9,16 @@ from src.models.user import User
 router = APIRouter()
 
 
-@router.patch("/users/{email}/promote", dependencies=[require_role("ADMIN")])
-def promote_to_admin(email: str, db: Session = Depends(get_db)) -> dict:
+def _get_user_or_404(email: str, db: Session) -> User:
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="존재하지 않는 사용자입니다.")
+    return user
+
+
+@router.patch("/users/{email}/promote", dependencies=[require_role("ADMIN")])
+def promote_to_admin(email: str, db: Session = Depends(get_db)) -> dict:
+    user = _get_user_or_404(email, db)
 
     user.role = "ADMIN"
     db.commit()
@@ -22,9 +27,7 @@ def promote_to_admin(email: str, db: Session = Depends(get_db)) -> dict:
 
 @router.patch("/users/{email}/demote", dependencies=[require_role("ADMIN")])
 def demote_to_user(email: str, db: Session = Depends(get_db)) -> dict:
-    user = db.query(User).filter(User.email == email).first()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="존재하지 않는 사용자입니다.")
+    user = _get_user_or_404(email, db)
 
     if user.role == "ADMIN" and db.query(User).filter(User.role == "ADMIN").count() <= 1:
         raise HTTPException(
