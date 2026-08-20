@@ -1,6 +1,9 @@
 """DB 연동 (database 모듈)."""
 import os
+from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -27,3 +30,19 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def apply(app) -> None:
+    """main.py에서 app 생성 직후 호출됨.
+
+    서버가 시작될 때, 아직 DB에 적용 안 된 마이그레이션 파일이 있으면
+    자동으로 적용한다(`alembic upgrade head`와 동일한 동작). 마이그레이션
+    파일 자체를 새로 만드는 것(`alembic revision --autogenerate`)은 모델이
+    바뀔 때마다 사람이 내용을 확인하며 해야 하지만, 이미 만들어져 검토까지
+    끝난 파일을 적용하는 건 안전하므로 이 부분만 자동화했다.
+    """
+    @app.on_event("startup")
+    def _run_migrations() -> None:
+        alembic_ini = Path(__file__).resolve().parents[2] / "alembic.ini"
+        cfg = Config(str(alembic_ini))
+        command.upgrade(cfg, "head")

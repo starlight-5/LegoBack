@@ -19,15 +19,52 @@ API 문서: http://localhost:8000/docs
 
 {% if 'database' in modules %}
 
-## DB 마이그레이션 (Alembic)
+## DB 테이블 관리 (Alembic)
 
-모델(`src/models/` 아래 파일들)을 추가하거나 수정했다면 마이그레이션 파일을 만들어야 합니다.
+이 프로젝트는 파이썬 코드로 적어둔 모델(예: `src/models/user.py`의 `User` 클래스)을 보고
+실제 데이터베이스에 테이블을 만들어주는 **Alembic**이라는 도구를 쓰고 있습니다.
 
-```bash
-alembic revision --autogenerate -m "설명"   # 변경사항 감지해서 마이그레이션 파일 생성
-alembic upgrade head                        # 실제 DB에 적용
-```
+### 처음 실행할 때 (테이블이 하나도 없는 상태)
 
-생성된 `migrations/versions/*.py` 파일은 항상 내용을 확인한 뒤 커밋하세요 — 자동 생성이 완벽하지 않을 수 있습니다.
+1. 아래 명령어로, "지금 코드에 있는 모델대로 테이블을 만들어라"는 내용이 적힌 파일을 하나 만듭니다.
+   ```bash
+   alembic revision --autogenerate -m "create users table"
+   ```
+   - `-m` 뒤의 문구는 진짜 명령어가 아니라 그냥 이 변경에 붙이는 이름표예요 (아래 설명 참고).
+   - 이 명령어는 아직 DB를 건드리지 않아요. `migrations/versions/` 폴더 안에 새 파일이
+     하나 생겼는지만 확인하면 됩니다.
+2. 방금 생긴 그 파일을 한 번 열어서 내용을 훑어봅니다 (왜 확인해야 하는지는 맨 아래 참고).
+3. 서버를 켭니다.
+   ```bash
+   uvicorn src.main:app --reload
+   # 또는 docker 모듈을 선택했다면:
+   docker compose up
+   ```
+   **서버가 켜지는 순간, 방금 만든 파일이 자동으로 DB에 적용돼서 실제 테이블이 생깁니다.**
+   예전엔 `alembic upgrade head`라는 명령어를 따로 쳐야 했지만, 지금은 서버 시작 코드에
+   이미 포함돼 있어서 따로 안 쳐도 됩니다.
+
+### 나중에 모델을 추가하거나 수정했을 때
+
+모델을 바꿀 때마다(테이블 추가, 필드 추가/삭제 등) 위 1~3번을 그대로 반복하면 됩니다.
+모델을 하나도 안 바꿨다면 이 과정을 할 필요가 전혀 없습니다.
+
+### `-m` 뒤에는 뭘 적어야 하나요?
+
+Alembic이 그 글자 내용을 읽고 뭔가 다르게 동작하는 게 아니에요. 나중에 `migrations/versions/`
+폴더에 파일이 여러 개 쌓였을 때, "이게 그때 그 변경이었지" 하고 사람이 알아보기 위한
+메모일 뿐이라 정해진 답이 없습니다. 지금 뭘 바꿨는지 짧게 적으면 됩니다. 예:
+
+- `alembic revision --autogenerate -m "create users table"` — 회원 테이블을 처음 만들 때
+- `alembic revision --autogenerate -m "add nickname to users"` — User 모델에 닉네임 필드를 추가했을 때
+- `alembic revision --autogenerate -m "create posts table"` — 게시글 모델을 새로 추가했을 때
+
+### 생성된 마이그레이션 파일, 왜 확인해야 하나요?
+
+Alembic의 자동 감지가 항상 완벽하지는 않습니다. 예를 들어 필드 이름만 바꾼 것
+(`hashed_password` → `password_hash`)을 Alembic이 "기존 필드 삭제 + 새 필드 추가"로
+잘못 인식할 수 있어요. 이걸 그대로 적용하면 기존 데이터가 사라질 수 있습니다. 그래서
+`migrations/versions/` 안에 새로 생긴 파일은 커밋하기 전에 한 번 내용을 읽어보는 걸
+권장합니다.
 {% endif %}
 
