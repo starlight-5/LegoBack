@@ -8,7 +8,7 @@ from scaffold.engine.errors import DuplicateFileError
 from scaffold.engine.generator import copy_module_files, generate, merge_packages
 from scaffold.engine.loader import load_manifests
 from scaffold.engine.manifest import FileMapping, ModuleManifest
-from scaffold.engine.resolver import collect_env, resolve
+from scaffold.engine.resolver import collect_env, filter_manifests, resolve
 
 MODULES = Path(__file__).parents[1] / "modules"
 
@@ -91,6 +91,30 @@ def test_full_ten_module_generation(tmp_path):
     assert (out / ".dockerignore").exists()
     env = (out / ".env").read_text(encoding="utf-8")
     assert "DATABASE_URL" in env and "@db:5432" in env
+
+
+@pytest.mark.parametrize(
+    ("selected", "db_type", "expected", "unexpected"),
+    [
+        (["ci", "database"], "postgresql", ["postgres:", "DATABASE_URL: postgresql://"], ["mysql:", "redis:"]),
+        (["ci", "database"], "mysql", ["mysql:", "DATABASE_URL: mysql+pymysql://"], ["postgres:", "redis:"]),
+        (["ci", "redis-cache"], None, ["redis:", "REDIS_URL: redis://"], ["postgres:", "mysql:"]),
+        (["ci"], None, [], ["services:", "DATABASE_URL:", "REDIS_URL:"]),
+    ],
+)
+def test_ci_services_follow_selected_modules(tmp_path, selected, db_type, expected, unexpected):
+    manifests = load_manifests(MODULES)
+    ordered = resolve(selected, manifests)
+    answers = {"db_type": db_type} if db_type else {}
+    filtered = filter_manifests({name: manifests[name] for name in ordered}, answers)
+    out = tmp_path / "ci-project"
+    generate(out, "ci-project", ordered, filtered, MODULES, collect_env(ordered, filtered))
+
+    workflow = (out / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    for value in expected:
+        assert value in workflow
+    for value in unexpected:
+        assert value not in workflow
 
 
 def test_alembic_files_delivered(tmp_path):

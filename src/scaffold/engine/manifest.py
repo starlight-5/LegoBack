@@ -25,6 +25,7 @@ class FileMapping(BaseModel):
     src: str
     dest: str
     when: WhenClause | None = None
+    render: bool = False
 
 
 class EnvVar(BaseModel):

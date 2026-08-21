@@ -130,12 +130,24 @@ def copy_module_files(project_dir: Path, ordered: list[str],
             if fm.dest in owner:
                 raise DuplicateFileError(fm.dest, owner[fm.dest], name)
             owner[fm.dest] = name
+    services = {
+        service_name: service
+        for name in ordered
+        for service_name, service in manifests[name].docker_services.items()
+    }
     for name in ordered:                     # 2차: 검사 통과 후에만 복사 실행
         for fm in manifests[name].files:
             src = modules_dir / name / fm.src
             dest = project_dir / fm.dest
             dest.parent.mkdir(parents=True, exist_ok=True)   # 빈 폴더 미생성 원칙
-            shutil.copyfile(src, dest)
+            if fm.render:
+                rendered = _env().from_string(src.read_text(encoding="utf-8")).render(
+                    modules=ordered,
+                    services=services,
+                )
+                dest.write_text(rendered, encoding="utf-8")
+            else:
+                shutil.copyfile(src, dest)
 
 
 def write_env_file(project_dir: Path, pairs: list[tuple[str, EnvVar]]) -> None:
