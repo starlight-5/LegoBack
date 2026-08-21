@@ -144,8 +144,9 @@ def write_env_file(project_dir: Path, pairs: list[tuple[str, EnvVar]]) -> None:
     for module, var in pairs:
         desc = var.description or "설명 없음"
         lines.append(f"# [{module}] {desc}")
-        if var.default:
-            lines.append(f"{var.name}={var.default}")
+        value = secrets.token_urlsafe(48) if var.generate == "secret" else var.default
+        if value:
+            lines.append(f"{var.name}={value}")
         else:
             lines.append(f"{var.name}=   # 여기에 값을 입력하세요")
         lines.append("")

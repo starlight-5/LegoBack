@@ -1,5 +1,6 @@
 """[2.3~2.5] 생성 검증: 최소 뼈대 · 배달 · 결정적 출력."""
 from pathlib import Path
+import re
 
 import pytest
 
@@ -36,7 +37,9 @@ def test_module_delivery(tmp_path):
     main = (out / "src" / "main.py").read_text(encoding="utf-8")
     assert 'prefix="/auth"' in main
     env = (out / ".env").read_text(encoding="utf-8")
-    assert "# [jwt-auth]" in env and "여기에 값을 입력하세요" in env
+    assert "# [jwt-auth]" in env
+    secret = re.search(r"^JWT_SECRET_KEY=(.+)$", env, re.MULTILINE)
+    assert secret and len(secret.group(1)) >= 64
     py = (out / "pyproject.toml").read_text(encoding="utf-8")
     assert "python-jose" in py and "fastapi" in py
 
@@ -45,8 +48,13 @@ def test_deterministic(tmp_path):
     """같은 입력 = 같은 결과물 (결정적 출력)."""
     a = _make(tmp_path / "run1", ["jwt-auth"], "demo")
     b = _make(tmp_path / "run2", ["jwt-auth"], "demo")
-    for f in ["src/main.py", "pyproject.toml", ".env"]:
+    for f in ["src/main.py", "pyproject.toml"]:
         assert (a / f).read_bytes() == (b / f).read_bytes()
+    env_a = (a / ".env").read_text(encoding="utf-8")
+    env_b = (b / ".env").read_text(encoding="utf-8")
+    secret_a = re.search(r"^JWT_SECRET_KEY=(.+)$", env_a, re.MULTILINE)
+    secret_b = re.search(r"^JWT_SECRET_KEY=(.+)$", env_b, re.MULTILINE)
+    assert secret_a and secret_b and secret_a.group(1) != secret_b.group(1)
 
 
 def test_duplicate_dest_rejected(tmp_path):

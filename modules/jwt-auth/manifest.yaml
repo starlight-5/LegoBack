@@ -21,7 +21,8 @@ pip_packages:
 env_vars:
   - name: JWT_SECRET_KEY
     default: ""
-    description: 토큰 서명에 쓰는 비밀 키 (반드시 변경)
+    description: 토큰 서명에 쓰는 비밀 키 (프로젝트 생성 시 자동 생성)
+    generate: secret
   - name: JWT_ACCESS_MINUTES
     default: "30"
     description: access 토큰 유효 시간(분)
