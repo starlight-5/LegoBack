@@ -122,3 +122,4 @@ def refresh(body: RefreshRequest) -> AccessTokenResponse:
 
     access_token = _create_token(payload["sub"], payload.get("role", "USER"), "access", secret, access_minutes)
     return AccessTokenResponse(access_token=access_token)
+

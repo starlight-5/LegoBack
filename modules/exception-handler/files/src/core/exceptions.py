@@ -7,12 +7,12 @@ FastAPI에서 발생하는 예외를 일관된 JSON 응답으로 변환한다.
 - RequestValidationError: 요청 데이터 검증 오류
 - Exception: 처리되지 않은 서버 예외
 
-처리되지 않은 서버 예외는 traceback을 exception.log에 기록하고,
+처리되지 않은 서버 예외는 exception.log에 traceback을 기록하고,
 클라이언트에는 내부 오류 정보를 노출하지 않는다.
 
 등록:
 manifest.yaml의 registrations에 선언된
-`src.core.exceptions.apply`를 엔진이 main.py에서 호출한다.
+`src.core.exceptions.apply`를 엔진이 호출한다.
 """
 
 import logging
@@ -50,13 +50,12 @@ def _configure_exception_logging() -> None:
 
     logger.setLevel(logging.ERROR)
 
-    # 설정이 여러 번 실행될 경우 handler가 중복 등록되는 것을 방지한다.
+    # apply()가 여러 번 호출되어도 handler가 중복 등록되지 않도록 한다.
     logger.handlers.clear()
 
     logger.addHandler(exception_handler)
 
-    # 상위 logger(app)로 예외 로그가 전달되어
-    # app.log에 중복 기록되는 것을 방지한다.
+    # app logger로 전달되어 app.log에 중복 기록되는 것을 방지한다.
     logger.propagate = False
 
 
@@ -101,7 +100,6 @@ async def handle_unexpected_exception(
         "Unhandled exception: %s %s",
         request.method,
         request.url.path,
-        exc_info=exc,
     )
 
     return JSONResponse(

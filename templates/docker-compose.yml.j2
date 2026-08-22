@@ -6,6 +6,8 @@ services:
     env_file: .env
     volumes:
       - ./src:/app/src
+      - ./logs:/app/logs
+
 {% if services %}
     depends_on:
 {% for name, svc in services %}
