@@ -47,12 +47,18 @@ def cached(ttl: int = 60, key_prefix: str = "") -> Callable:
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            #1. 키 생성 
             key = _build_key(key_prefix or func.__name__, args, kwargs)
+            #2. 캐시 조회
             hit = cache_get(key)
+            #3. 캐시가 있으면 저장된 캐시값 반환
             if hit is not None:
                 return hit
+            #4. 캐시가 없으면 함수 실행
             result = func(*args, **kwargs)
+            #5. 캐시에 키와 함수 결과 저장
             cache_set(key, result, ttl=ttl)
+            #6. 저장한 캐시 값 반환
             return result
         return wrapper
     return decorator
