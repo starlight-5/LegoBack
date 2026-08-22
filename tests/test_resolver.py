@@ -6,7 +6,7 @@ import pytest
 from scaffold.engine.errors import CircularDependencyError, ScaffoldError
 from scaffold.engine.loader import load_manifests
 from scaffold.engine.manifest import ModuleManifest
-from scaffold.engine.resolver import collect_env, resolve
+from scaffold.engine.resolver import collect_env, filter_manifests, resolve
 
 MODULES = Path(__file__).parents[1] / "modules"
 
@@ -32,9 +32,11 @@ def test_cycle_detected():
 
 def test_collect_env_order():
     m = load_manifests(MODULES)
-    pairs = collect_env(resolve(["jwt-auth"], m), m)
+    ordered = resolve(["jwt-auth"], m)
+    filtered = filter_manifests(m, {"db_type": "postgresql"})
+    pairs = collect_env(ordered, filtered)
     names = [v.name for _, v in pairs]
     assert names == [
-        "APP_ENV", "DATABASE_URL",
+        "APP_ENV", "DATABASE_URL", "DB_PORT",
         "JWT_SECRET_KEY", "JWT_ACCESS_MINUTES", "JWT_REFRESH_MINUTES",
     ]

@@ -4,6 +4,7 @@
 '창작'하지 않는다 — 검수된 파일을 복사하거나, manifest 값을 채워 넣을 뿐이다.
 """
 from pathlib import Path
+import secrets
 import shutil
 
 from jinja2 import Environment, FileSystemLoader
@@ -152,19 +153,44 @@ def write_env_file(project_dir: Path, pairs: list[tuple[str, EnvVar]]) -> None:
     (project_dir / ".env").write_text("\n".join(lines), encoding="utf-8")
 
 
+def _named_volumes(services: list[tuple[str, object]]) -> list[str]:
+    """[신규] 서비스 volumes 중 이름 있는(named) 볼륨만 추출 (바인드 마운트 경로는 제외).
+
+    compose 짧은 문법 "VOLUME:CONTAINER_PATH"에서 VOLUME이 "."나 "/"로 시작하지
+    않으면 이름 있는 볼륨이고, docker compose는 이걸 최상단 volumes:에 선언하지
+    않으면 "undefined volume"으로 거부한다.
+    """
+    names: set[str] = set()
+    for _, svc in services:
+        for v in svc.volumes:
+            host_part = v.split(":", 1)[0]
+            if not host_part.startswith((".", "/")):
+                names.add(host_part)
+    return sorted(names)
+
+
 def write_docker(project_dir: Path, ordered: list[str],
-                 manifests: dict[str, ModuleManifest]) -> None:
-    """[2.5] docker-compose.yml + Dockerfile. docker 모듈 선택 시에만 호출."""
+                 manifests: dict[str, ModuleManifest],
+                 compose_project_name: str | None = None) -> None:
+    """[2.5] docker-compose.yml + Dockerfile. docker 모듈 선택 시에만 호출.
+
+    compose_project_name을 주면 컴포즈 파일 최상단에 name:으로 박아, 폴더 이름이
+    우연히 같은 다른 프로젝트와 Compose 프로젝트 네임스페이스(볼륨/네트워크 접두사)가
+    겹치지 않게 한다.
+    """
     env = _env()
+    has_database = "database" in ordered
     services: list[tuple[str, object]] = []
     for name in ordered:
         for svc_name, svc in sorted(manifests[name].docker_services.items()):
             services.append((svc_name, svc))
     (project_dir / "docker-compose.yml").write_text(
-        env.get_template("docker-compose.yml.j2").render(services=services),
+        env.get_template("docker-compose.yml.j2").render(
+            services=services, named_volumes=_named_volumes(services),
+            compose_project_name=compose_project_name, has_database=has_database),
         encoding="utf-8")
     (project_dir / "Dockerfile").write_text(
-        env.get_template("Dockerfile.j2").render(), encoding="utf-8")
+        env.get_template("Dockerfile.j2").render(has_database=has_database), encoding="utf-8")
 
 
 def generate(project_dir: Path, project_name: str, ordered: list[str],
@@ -175,4 +201,5 @@ def generate(project_dir: Path, project_name: str, ordered: list[str],
     copy_module_files(project_dir, ordered, manifests, modules_dir)
     write_env_file(project_dir, env_pairs)
     if "docker" in ordered:
-        write_docker(project_dir, ordered, manifests)
+        compose_project_name = f"{project_name}-{secrets.token_hex(3)}"
+        write_docker(project_dir, ordered, manifests, compose_project_name=compose_project_name)

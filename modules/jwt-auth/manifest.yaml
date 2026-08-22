@@ -11,6 +11,8 @@ files:
     dest: src/models/user.py
   - src: files/tests/test_auth.py
     dest: tests/test_auth.py
+  - src: files/tests/conftest.py
+    dest: tests/conftest.py
 pip_packages:
   - python-jose[cryptography]>=3.3
   - passlib[bcrypt]>=1.7

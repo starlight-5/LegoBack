@@ -90,7 +90,10 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)) -> TokenResponse:
     if db.query(User).filter(User.email == body.email).first() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="이미 가입된 이메일입니다.")
 
-    user = User(email=body.email, hashed_password=pwd_context.hash(body.password))
+    # 이 배포에 가입자가 아직 한 명도 없으면 첫 가입자를 ADMIN으로 만든다 (팀 결정사항, 2026-08-03).
+    is_first_user = db.query(User).first() is None
+    role = "ADMIN" if is_first_user else "USER"
+    user = User(email=body.email, hashed_password=pwd_context.hash(body.password), role=role)
     db.add(user)
     db.commit()
     db.refresh(user)

@@ -147,3 +147,9 @@ def err(msg: str, hint: str = "") -> None:
     typer.secho(f"✘ {msg}", fg=typer.colors.RED, err=True)
     if hint:
         typer.secho(f"  → {hint}", fg=typer.colors.RED, err=True)
+
+
+# 입력: msg(str) - 강조할 메시지 (예: 안내 URL)
+# 출력: 없음 (콘솔에 굵고 밑줄 친 청록색으로 출력해 눈에 띄게 함)
+def highlight(msg: str) -> None:
+    typer.secho(msg, fg=typer.colors.CYAN, bold=True, underline=True)

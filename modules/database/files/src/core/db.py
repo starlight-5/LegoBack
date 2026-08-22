@@ -1,7 +1,4 @@
-"""DB 연동 (database 모듈).
-
-TODO(모듈 파트): Alembic 마이그레이션 셋업.
-"""
+"""DB 연동 (database 모듈)."""
 import os
 
 from sqlalchemy import create_engine

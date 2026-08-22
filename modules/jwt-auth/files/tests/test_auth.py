@@ -1,45 +1,8 @@
 """회원가입·로그인·토큰 재발급 실제 동작 테스트 (jwt-auth 모듈)."""
-import os
-
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
-
-import pytest
-from fastapi.testclient import TestClient
 from jose import jwt
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from src.core.db import Base, get_db
-from src.main import app
+from conftest import TestingSessionLocal, client
 from src.routers.auth import ALGORITHM
-
-# 실제 DATABASE_URL(Postgres) 없이도 검증 가능하도록 sqlite 메모리 DB로 get_db를 오버라이드.
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def _override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = _override_get_db
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _clean_db():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
 
 
 def test_signup_returns_tokens():
@@ -59,6 +22,19 @@ def test_signup_hashes_password_not_plaintext():
     db.close()
     assert user.hashed_password != "pw12345"
     assert user.hashed_password.startswith("$2b$")
+
+
+def test_first_signup_becomes_admin():
+    res = client.post("/auth/signup", json={"email": "first@b.c", "password": "pw12345"})
+    payload = jwt.decode(res.json()["access_token"], "test-secret-key", algorithms=[ALGORITHM])
+    assert payload["role"] == "ADMIN"
+
+
+def test_second_signup_stays_user():
+    client.post("/auth/signup", json={"email": "first2@b.c", "password": "pw12345"})
+    res = client.post("/auth/signup", json={"email": "second2@b.c", "password": "pw12345"})
+    payload = jwt.decode(res.json()["access_token"], "test-secret-key", algorithms=[ALGORITHM])
+    assert payload["role"] == "USER"
 
 
 def test_signup_duplicate_email_rejected():
