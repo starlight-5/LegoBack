@@ -103,7 +103,6 @@ def create_skeleton(project_dir: Path, project_name: str,
     (project_dir / "src").mkdir(parents=True, exist_ok=True)
     (project_dir / "tests").mkdir(parents=True, exist_ok=True)
     (project_dir / "logs").mkdir(parents=True, exist_ok=True)
-    
     (project_dir / "src" / "__init__.py").touch()
 
     (project_dir / "src" / "main.py").write_text(

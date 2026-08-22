@@ -13,6 +13,7 @@ services:
 {% if has_database %}
       - ./migrations:/app/migrations
 {% endif %}
+
 {% if services %}
     depends_on:
 {% for name, svc in services %}
