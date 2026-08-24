@@ -33,7 +33,7 @@ pip_packages:
     when: { "db_type": ["mysql"] }
   - spec: motor>=3.3
     when: { "db_type": ["mongodb"] }
-  - spec: beanie>=1.25
+  - spec: beanie==2.0.0
     when: { "db_type": ["mongodb"] }
   - spec: mongomock-motor>=0.0.31
     when: { "db_type": ["mongodb"] }

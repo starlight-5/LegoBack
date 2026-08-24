@@ -26,6 +26,9 @@ files:
   - src: files/tests/test_auth_mongo.py
     dest: tests/test_auth.py
     when: { "db_type": ["mongodb"] }
+  - src: files/tests/conftest_mongo.py
+    dest: tests/conftest.py
+    when: { "db_type": ["mongodb"] }
 pip_packages:
   - python-jose[cryptography]>=3.3
   - passlib[bcrypt]>=1.7

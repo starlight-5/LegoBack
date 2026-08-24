@@ -1,38 +1,11 @@
 """회원가입·로그인·토큰 재발급 실제 동작 테스트 (jwt-auth 모듈, MongoDB 변형)."""
 import asyncio
-import os
 
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
-
-import pytest
-from beanie import init_beanie
-from fastapi.testclient import TestClient
 from jose import jwt
-from mongomock_motor import AsyncMongoMockClient
 
-from src.core.db import get_db
-from src.main import app
+from conftest import client
 from src.models.user import User
 from src.routers.auth import ALGORITHM
-
-# 실제 MongoDB 없이도 검증 가능하도록, get_db 의존성을 mongomock의 가짜
-# 클라이언트로 초기화하는 버전으로 오버라이드한다 (SQL 쪽이 sqlite 메모리
-# DB로 get_db를 오버라이드하는 것과 같은 목적).
-_mock_client = AsyncMongoMockClient()
-
-
-async def _override_get_db() -> None:
-    await init_beanie(database=_mock_client["test"], document_models=[User])
-
-
-app.dependency_overrides[get_db] = _override_get_db
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _clean_db():
-    yield
-    asyncio.run(User.delete_all())
 
 
 def test_signup_returns_tokens():
