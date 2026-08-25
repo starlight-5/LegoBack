@@ -63,6 +63,8 @@ env_vars:
     description: MongoDB 접속 주소 (호스트명 mongo = docker-compose 서비스명, 경로의 app이 실제 사용할 DB 이름)
     when: { "db_type": ["mongodb"] }
 routers: []
+registrations:
+  - src.core.db.apply
 docker_services:
   db:
     image: postgres:16
