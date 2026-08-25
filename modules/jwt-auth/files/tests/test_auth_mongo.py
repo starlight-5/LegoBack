@@ -17,9 +17,17 @@ def test_signup_returns_tokens():
     assert body["refresh_token"]
 
 
+async def _find_by_email(email: str) -> User:
+    return await User.find_one(User.email == email)
+
+
 def test_signup_hashes_password_not_plaintext():
     client.post("/auth/signup", json={"email": "hash@b.c", "password": "pw12345"})
-    user = asyncio.run(User.find_one(User.email == "hash@b.c"))
+    # User.find_one(...)는 코루틴이 아니라 별도의 쿼리 객체(FindOne)라, asyncio.run()에
+    # 바로 넘기면 안 된다 — Python 3.14는 awaitable이면 알아서 감싸줘서 통과하지만,
+    # 3.12 이하는 진짜 코루틴만 받아서 "a coroutine was expected"로 죽는다.
+    # async def로 한 번 감싸서 진짜 코루틴을 만들어 넘겨야 버전에 상관없이 동작한다.
+    user = asyncio.run(_find_by_email("hash@b.c"))
     assert user.hashed_password != "pw12345"
     assert user.hashed_password.startswith("$2b$")
 
