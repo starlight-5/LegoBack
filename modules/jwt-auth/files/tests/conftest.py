@@ -8,7 +8,10 @@ pytest는 conftest.py 안의 autouse 픽스처를 같은 폴더의 모든 테스
 """
 import os
 
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
+# setdefault가 아니라 무조건 덮어쓰기: 도커 컨테이너 안에서 pytest를 돌리면 .env의
+# 실제 JWT_SECRET_KEY가 이미 환경변수에 들어가 있어서 setdefault는 손도 못 대고,
+# 그러면 이 값(=서버가 서명에 씀)과 아래 테스트들이 기대하는 고정값이 어긋나 죽는다.
+os.environ["JWT_SECRET_KEY"] = "test-secret-key"
 
 import pytest
 from fastapi.testclient import TestClient
