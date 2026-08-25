@@ -1,12 +1,13 @@
 # ============================================================
-# fastapi-scaffold 패키지 정의서
+# legoback 패키지 정의서
 # 온보딩: python -m venv .venv → 활성화 → pip install -e ".[dev]" → pytest
 # ============================================================
 
 [project]
-name = "fastapi-scaffold"            # 패키지 이름 (pip가 인식하는 공식 명칭)
+name = "legoback"                    # 패키지 이름 (pip가 인식하는 공식 명칭)
 version = "0.1.0"
 description = "AI 기반 백엔드 초기 환경 설정 도구"
+license = "Apache-2.0"               # 전문은 저장소 루트 LICENSE 파일
 requires-python = ">=3.11"           # graphlib·최신 문법 사용. 팀 표준은 3.12 (CI와 동일)
 
 # 도구가 '돌아가는 데' 필요한 필수 패키지 — pip install -e . 만 해도 설치됨
@@ -47,3 +48,9 @@ where = ["src"]
 # pytest 기본 설정: 테스트는 tests/ 폴더에서만 탐색
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# integration = 실제 저장소의 modules/ 디렉터리를 라이브 데이터로 읽는 테스트.
+# 손으로 만든 ModuleManifest나 tmp_path에 격리된 데이터만 쓰는 테스트는 마킹하지 않는다(단위테스트).
+# `pytest -m "not integration"`으로 단위테스트만 빠르게 돌릴 수 있다. CI는 마커와 무관하게 전체를 돈다.
+markers = [
+    "integration: 실제 modules/ 디렉터리를 읽는 테스트 (신규 모듈 추가 시 여기 걸린다)",
+]

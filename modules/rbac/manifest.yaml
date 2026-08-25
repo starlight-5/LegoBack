@@ -6,9 +6,25 @@ depends_on:
 files:
   - src: files/src/core/rbac.py
     dest: src/core/rbac.py
+  - src: files/src/routers/admin.py
+    dest: src/routers/admin.py
+    when: { "db_type": ["postgresql", "mysql"] }
+  - src: files/tests/test_admin.py
+    dest: tests/test_admin.py
+    when: { "db_type": ["postgresql", "mysql"] }
+  - src: files/src/routers/admin_mongo.py
+    dest: src/routers/admin.py
+    when: { "db_type": ["mongodb"] }
+  - src: files/tests/test_admin_mongo.py
+    dest: tests/test_admin.py
+    when: { "db_type": ["mongodb"] }
   - src: files/tests/test_rbac.py
     dest: tests/test_rbac.py
 pip_packages: []
 env_vars: []
-routers: []
+routers:
+  - module: src.routers.admin
+    attr: router
+    prefix: /admin
+    tag: admin
 docker_services: {}

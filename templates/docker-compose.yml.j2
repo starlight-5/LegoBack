@@ -1,3 +1,6 @@
+{% if compose_project_name %}
+name: {{ compose_project_name }}
+{% endif %}
 services:
   app:
     build: .
@@ -7,6 +10,9 @@ services:
     volumes:
       - ./src:/app/src
       - ./logs:/app/logs
+{% if has_database %}
+      - ./migrations:/app/migrations
+{% endif %}
 
 {% if services %}
     depends_on:
@@ -36,3 +42,9 @@ services:
 {% endfor %}
 {% endif %}
 {% endfor %}
+{% if named_volumes %}
+volumes:
+{% for v in named_volumes %}
+  {{ v }}:
+{% endfor %}
+{% endif %}

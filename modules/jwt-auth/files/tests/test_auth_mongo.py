@@ -1,7 +1,10 @@
-"""회원가입·로그인·토큰 재발급 실제 동작 테스트 (jwt-auth 모듈)."""
+"""회원가입·로그인·토큰 재발급 실제 동작 테스트 (jwt-auth 모듈, MongoDB 변형)."""
+import asyncio
+
 from jose import jwt
 
-from conftest import TestingSessionLocal, client
+from conftest import client
+from src.models.user import User
 from src.routers.auth import ALGORITHM
 
 
@@ -16,12 +19,15 @@ def test_signup_returns_tokens():
 
 def test_signup_hashes_password_not_plaintext():
     client.post("/auth/signup", json={"email": "hash@b.c", "password": "pw12345"})
-    db = TestingSessionLocal()
-    from src.models.user import User
-    user = db.query(User).filter(User.email == "hash@b.c").first()
-    db.close()
+    user = asyncio.run(User.find_one(User.email == "hash@b.c"))
     assert user.hashed_password != "pw12345"
     assert user.hashed_password.startswith("$2b$")
+
+
+def test_signup_duplicate_email_rejected():
+    client.post("/auth/signup", json={"email": "dup@b.c", "password": "pw12345"})
+    res = client.post("/auth/signup", json={"email": "dup@b.c", "password": "other-pw"})
+    assert res.status_code == 409
 
 
 def test_first_signup_becomes_admin():
@@ -35,12 +41,6 @@ def test_second_signup_stays_user():
     res = client.post("/auth/signup", json={"email": "second2@b.c", "password": "pw12345"})
     payload = jwt.decode(res.json()["access_token"], "test-secret-key", algorithms=[ALGORITHM])
     assert payload["role"] == "USER"
-
-
-def test_signup_duplicate_email_rejected():
-    client.post("/auth/signup", json={"email": "dup@b.c", "password": "pw12345"})
-    res = client.post("/auth/signup", json={"email": "dup@b.c", "password": "other-pw"})
-    assert res.status_code == 409
 
 
 def test_login_with_correct_password_succeeds():

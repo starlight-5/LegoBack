@@ -1,34 +1,105 @@
 name: database
-description: SQLAlchemy + Alembic DB 연동 (PostgreSQL 기본)
+description: DB 연동 (PostgreSQL/MySQL은 SQLAlchemy+Alembic, MongoDB는 Motor+Beanie)
 category: data
 depends_on:
   - settings
 files:
   - src: files/src/core/db.py
     dest: src/core/db.py
-    when : { "db_type" : ["postgresql"] }
+    when: { "db_type": ["postgresql", "mysql"] }
+  - src: files/alembic.ini
+    dest: alembic.ini
+    when: { "db_type": ["postgresql", "mysql"] }
+  - src: files/migrations/env.py
+    dest: migrations/env.py
+    when: { "db_type": ["postgresql", "mysql"] }
+  - src: files/migrations/script.py.mako
+    dest: migrations/script.py.mako
+    when: { "db_type": ["postgresql", "mysql"] }
+  - src: files/migrations/versions/.gitkeep
+    dest: migrations/versions/.gitkeep
+    when: { "db_type": ["postgresql", "mysql"] }
+  - src: files/src/core/db_mongo.py
+    dest: src/core/db.py
+    when: { "db_type": ["mongodb"] }
+  - src: files/tests/test_db.py
+    dest: tests/test_db.py
+    when: { "db_type": ["postgresql", "mysql"] }
+  - src: files/tests/test_db_mongo.py
+    dest: tests/test_db.py
+    when: { "db_type": ["mongodb"] }
 pip_packages:
-  - sqlalchemy>=2.0
-  - alembic>=1.13
-  - psycopg2-binary>=2.9
+  - spec: sqlalchemy>=2.0
+    when: { "db_type": ["postgresql", "mysql"] }
+  - spec: alembic>=1.13
+    when: { "db_type": ["postgresql", "mysql"] }
+  - spec: psycopg2-binary>=2.9
+    when: { "db_type": ["postgresql"] }
+  - spec: pymysql>=1.1
+    when: { "db_type": ["mysql"] }
+  - spec: motor>=3.3
+    when: { "db_type": ["mongodb"] }
+  - spec: beanie==2.0.0
+    when: { "db_type": ["mongodb"] }
+  - spec: mongomock-motor>=0.0.31
+    when: { "db_type": ["mongodb"] }
 env_vars:
   - name: DATABASE_URL
     default: postgresql://app:app@db:5432/app
-    description: DB 접속 주소 (호스트명 db = docker-compose 서비스명)
+    description: PostgreSQL 접속 주소 (호스트명 db = docker-compose 서비스명)
+    when: { "db_type": ["postgresql"] }
+  - name: DATABASE_URL
+    default: mysql+pymysql://app:app@db-mysql:3306/app
+    description: MySQL 접속 주소 (호스트명 db-mysql = docker-compose 서비스명)
+    when: { "db_type": ["mysql"] }
+  - name: DB_PORT
+    default: "5432"
+    description: postgres 컨테이너를 게시할 호스트 포트(로컬 DB 클라이언트로 직접 붙을 때 사용). 앱은 docker-compose 내부망의 db:5432로 접속하므로 이 값을 바꿔도 앱 동작엔 영향 없음 — 다른 프로젝트와 포트가 겹치면 이 값만 바꾸세요.
+    when: { "db_type": ["postgresql"] }
+  - name: DB_PORT
+    default: "3306"
+    description: mysql 컨테이너를 게시할 호스트 포트(로컬 DB 클라이언트로 직접 붙을 때 사용). 앱은 docker-compose 내부망의 db-mysql:3306으로 접속하므로 이 값을 바꿔도 앱 동작엔 영향 없음 — 다른 프로젝트와 포트가 겹치면 이 값만 바꾸세요.
+    when: { "db_type": ["mysql"] }
+  - name: MONGO_URL
+    default: mongodb://app:app@mongo:27017/app?authSource=admin
+    description: MongoDB 접속 주소 (호스트명 mongo = docker-compose 서비스명, 경로의 app이 실제 사용할 DB 이름)
+    when: { "db_type": ["mongodb"] }
 routers: []
+registrations:
+  - src.core.db.apply
 docker_services:
   db:
     image: postgres:16
-    ports: ["5432:5432"]
+    ports: ["${DB_PORT:-5432}:5432"]
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
       POSTGRES_DB: app
     volumes:
       - db-data:/var/lib/postgresql/data
+    when: { "db_type": ["postgresql"] }
+  db-mysql:
+    image: mysql:8
+    ports: ["${DB_PORT:-3306}:3306"]
+    environment:
+      MYSQL_ROOT_PASSWORD: app
+      MYSQL_DATABASE: app
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+    volumes:
+      - db-mysql-data:/var/lib/mysql
+    when: { "db_type": ["mysql"] }
+  mongo:
+    image: mongo:7
+    ports: ["27017:27017"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: app
+      MONGO_INITDB_ROOT_PASSWORD: app
+    volumes:
+      - mongo-data:/data/db
+    when: { "db_type": ["mongodb"] }
 options:
   db_type:
     question: "사용할 데이터베이스 종류를 선택하세요"
-    choices: [postgresql]
+    choices: [postgresql, mysql, mongodb]
     default: postgresql
-    # TODO [회의]: mysql/supabase/mongodb choices 추가는 후속 작업(C파트)

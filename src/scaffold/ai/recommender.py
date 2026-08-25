@@ -14,7 +14,7 @@ from .schema import AnalysisResult
 
 _API_KEY_ENVS = ("GEMINI_API_KEY", "GOOGLE_API_KEY")
 _MODEL_ENV = "GEMINI_MODEL"
-_DEFAULT_MODEL = "gemini-flash-latest"
+_DEFAULT_MODEL = "gemini-3.1-flash-lite"
 
 _MAX_QUESTIONS = 10  # [1.1.3] 보완 질문 최대 개수 (고정값)
 _REASON_MAX_CHARS = 30  # 추천 근거 한 줄 요약 길이 (체크박스 목록에서 안 잘리도록)

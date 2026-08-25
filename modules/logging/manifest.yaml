@@ -1,7 +1,8 @@
 name: logging
 description: 요청 로깅 미들웨어
 category: quality
-depends_on: []
+depends_on:
+  - settings
 files:
   - src: files/src/core/logging_mw.py
     dest: src/core/logging_mw.py
@@ -9,7 +10,7 @@ files:
 
   - src: files/tests/test_logging.py
     dest: tests/test_logging.py
-    pip_packages: []  
+    pip_packages: []
 env_vars:
   - name: LOG_LEVEL
     default: INFO
