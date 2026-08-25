@@ -1,100 +1,205 @@
-# legoback
+legoback
+========
 
-AI 기반 백엔드 초기 환경 설정 도구. 자연어 설명 → 모듈 추천 → 검수된 코드 조립.
+[![CI](https://github.com/starlight-5/LegoBack/actions/workflows/ci.yml/badge.svg)](https://github.com/starlight-5/LegoBack/actions/workflows/ci.yml)
+![Python versions](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-원칙: **AI는 추천만, 코드는 배달만.** 같은 선택이면 항상 같은 결과(결정적 출력).
+English | [한국어](README.ko.md)
 
-## 빠른 시작 (팀원용)
+legoback is an AI-assisted backend scaffolding tool. It turns a natural-language
+description of what you want to build into a recommended set of reviewed,
+production-ready modules, then assembles them into a runnable FastAPI project.
+
+Principle: **AI only recommends, code is always delivered as-is.** The same
+selection always produces the same output (deterministic assembly) — the LLM
+never writes the code that ends up in your project.
+
+
+Requirements
+------------
+
+### Python & Build Tools
+
+- **Python**: 3.11+ (team standard is 3.12, same as CI)
+- **pip**: with editable-install (`-e`) support — required because `templates/`
+  lives at the repo root and a regular install can't find it
+
+### Runtime Dependencies
+
+Key dependencies (see [pyproject.toml](pyproject.toml) for the full/pinned list):
+
+| Package | Purpose |
+|---|---|
+| typer | CLI command parser (`legoback new ...`) |
+| questionary | Arrow-key + checkbox interactive UI |
+| pydantic | manifest schema / AI analysis result contract |
+| jinja2 | Renders templated files (main.py, docker-compose, etc.) |
+| pyyaml | Parses each module's `manifest.yaml` |
+| packaging | Version-range intersection checks |
+| google-genai | Calls Gemini for AI module recommendations |
+| python-dotenv | Loads `GEMINI_API_KEY` etc. from `.env` |
+
+### Optional
+
+- **`GEMINI_API_KEY`** — without it, AI recommendation falls back to manual
+  selection from the full module list
+
+
+Getting Started
+----------------
+
+### Quick Start (for teammates)
+
+#### 1. Clone and install
 
 ```bash
-python -m venv .venv           # 가상환경 생성
-.venv\Scripts\activate         # 가상환경 활성화
-pip install -e ".[dev]"        # 개발 의존성 설치
-copy .env.example .env         # GEMINI_API_KEY 채우기 (AI 추천용, 없으면 전체 목록 수동 선택으로 대체)
-pytest -s                      # 49개 테스트 통과 확인
-legoback new my-blog           # 대화형 생성 흐름 실행
+python -m venv .venv           # create virtualenv
+.venv\Scripts\activate         # activate (Windows)
+pip install -e ".[dev]"        # install with dev dependencies
 ```
 
-## 모듈 충돌 검사 정책
+#### 2. Configure environment
 
-모듈 제작자는 모듈을 추가하기 전에 충돌 검사를 통과해야 합니다.
-
-- 버전 충돌: 요구 조건의 교집합이 있으면 통과, 없으면 실패; 공통 범위가 있으면 권장 버전도 함께 제시
-- 라우트 충돌: prefix 또는 엔드포인트 경로가 중복되면 실패
-- 환경변수 충돌: 같은 변수명에 서로 다른 기본값을 쓰면 실패
-
-충돌이 발견되면 원인, 관련 모듈, 그리고 해결 제안까지 출력하고, 생성 흐름은 중단됩니다.
-
-예시 해결 제안:
-- 라우트 prefix 변경
-- 환경변수 이름 변경
-- 서로 충돌하는 의존성 조합 피하기
-
-## 저장소 구조 = 파트 소유권
-
-```
-src/scaffold/
-├── engine/     # A 파트 — 조합 엔진 (구분 2·3)
-├── ai/         # B 파트 — LLM 분석·추천 (구분 1)
-├── ui.py       # D 파트 — 인터랙티브 화면 (4.2~4.4)
-└── cli.py      # D 파트 — 명령어·전체 흐름 (4.1, 2.1)
-templates/      # A 파트 — 생성 프로젝트용 Jinja2 템플릿 (렌더링형 파일)
-modules/        # C 파트 — 검수 모듈 (모듈당 manifest.yaml + files/)
-tests/          # 엔진 커버리지 70% 이상 유지 (CI 게이트)
-docs/           # C 파트 — 모듈 기여 가이드 (구분 5)
+```bash
+copy .env.example .env
+# fill in GEMINI_API_KEY (optional — falls back to manual full-list selection without it)
 ```
 
-## 노션 명세 ↔ 코드 매핑
+#### 3. Verify the test suite
 
-각 파일 상단과 함수 docstring에 `[번호]`로 담당 스펙이 표시되어 있다.
-노션에서 자기 항목 번호를 확인하고 아래에서 파일을 찾으면 된다.
+```bash
+pytest -s                      # 49 tests should pass
+```
 
-| 노션 구분 | 상세 기능 | 파일 | 상태 |
-|---|---|---|---|
-| 1.1 입력 처리 | 1.1.1~1.1.5 | `cli.py` (_normalize, new) | 뼈대 완료, 메시지 다듬기 TODO |
-| 1.2 AI 분석 | 1.2.1 LLM 연동 | `ai/recommender.py` `_call_llm` | 완료 (Gemini API 연동, 구조화 출력) |
-| 1.2 AI 분석 | 1.2.2 계약 | `ai/schema.py` AnalysisResult | 완료 (변경은 B·D 합의) |
-| 1.2 AI 분석 | 1.2.3 검증 | `ai/recommender.py` analyze | 완료 (환각 모듈 제거 + 필수 모듈 보강) |
-| 1.3 추천 | 1.3.1~1.3.4 | `engine/loader.py`, `recommender.py`, `cli.py` | 완료 |
-| 2.1 선택·확인 | 2.1.1~2.1.3 | `cli.py` run_init_flow 루프 | 완료 |
-| 2.2 해석 | 2.2.1 파싱 | `engine/manifest.py`, `loader.py` | 완료 |
-| 2.2 해석 | 2.2.2 그래프 | `engine/resolver.py` resolve | 완료 (테스트 포함) |
-| 2.2 해석 | 2.2.3 추출 | `engine/resolver.py` collect_env | 완료 |
-| 2.3 뼈대 | 2.3.1 | `engine/generator.py` create_skeleton | 완료 (완료 기준 테스트 포함) |
-| 2.4 병합 | 2.4.1~2.4.4 | `engine/generator.py` | 완료 |
-| 2.5 Docker | 2.5.1~2.5.4 | `generator.py` write_docker + 템플릿 | 완료 (top-level `volumes:` 선언 버그 수정 반영) |
-| 3.1 버전 충돌 | 3.1.1~3.1.4 | `engine/conflicts.py` check_versions | 판정 완료, 3.1.3 최적 버전 TODO |
-| 3.2 기능 충돌 | 3.2.1~3.2.2 | `conflicts.py` check_routes/env | 완료 / 3.2.3 스키마 TODO |
-| 3.3 해결 제시 | 3.3.1~3.3.4 | `conflicts.py` check_routes 등 | 라우트 충돌 해결 제안 완료, 버전·환경변수 제안 문구 생성은 TODO |
-| 4.1 명령어 | 4.1.1~4.1.4 | `cli.py` | 완료 |
-| 4.2 선택 UI | 4.2.1~4.2.4 | `ui.py` select_modules | 완료 (questionary) |
-| 4.3 진행 표시 | 4.3.1~4.3.3 | `ui.py` step (스피너) | 완료 |
-| 4.4 메시지 | 4.4.1~4.4.4 | `ui.py`, `engine/errors.py` | 완료 |
-| 5.x 생태계 | 5.1~5.2 | `docs/CONTRIBUTING-MODULES.md` | 초안 |
+#### 4. Generate a project
 
-## 모듈 현황 (10종 전체 등록)
+```bash
+legoback new my-blog           # interactive generation flow
+```
 
-| 모듈 | 상태 |
-|---|---|
-| settings | ✅ 완료 (실코드 + 테스트) |
-| docker | ✅ 완료 (docker-compose.yml named volume 선언 버그 수정) |
-| ci | ✅ 설정 파일형 — 사실상 완료 (DB 서비스 블록 자동 추가만 회의 대기) |
-| cors, logging, exception-handler | ✅ 완료 (registrations 필드로 main.py 자동 연결, 테스트 포함) |
-| database | ✅ 완료 (PostgreSQL/MySQL/Supabase + Alembic, db_type별 조건부 파일·env·docker_services) |
-| redis-cache | 🔶 접속 코드 동작 — 캐시 데코레이터(@cached) TODO |
-| jwt-auth | ✅ 완료 (bcrypt 해싱 + JWT access/refresh 토큰) |
-| rbac | ✅ 완료 (jwt-auth `decode_access_token` 연동, 역할 기반 접근 제어) |
-
-새 모듈 추가 = `modules/<이름>/` 폴더 + manifest.yaml + files/. 코드 수정 불필요.
-자세한 방법: `docs/CONTRIBUTING-MODULES.md`
-
-## 데모 (현재 동작하는 것)
+### Try It Out (currently working)
 
 ```bash
 legoback new demo-blog
-# "블로그 만들거야. 로그인 필요해" 입력
-# → Gemini API가 분석해 settings, jwt-auth, database 추천 (API 키 없으면 전체 목록 수동 선택으로 대체)
-# → 체크박스 선택 → 생성
-cd demo-blog && pip install -e ".[dev]" && pytest   # 3개 테스트 통과
-uvicorn src.main:app --reload                        # /docs 에서 /auth API 확인
+# enter: "블로그 만들거야. 로그인 필요해" (a blog with login)
+# → Gemini analyzes the input and recommends settings, jwt-auth, database
+#   (falls back to manual full-list selection without an API key)
+# → confirm via checkbox UI → project generated (venv + base deps are installed automatically right after generation)
+cd demo-blog
+pip install -e ".[dev]"    # adds dev-only tools (pytest, etc.) for testing
+pytest                      # 3 tests pass
+uvicorn src.main:app --reload                        # check /auth API at /docs
 ```
+
+
+Architecture
+------------
+
+legoback takes a natural-language description, has AI recommend modules, and
+assembles only the modules that pass conflict checking into a runnable project:
+
+```
+input (natural language) → [B] AI analysis/recommendation → [D] selection UI
+  → [A] resolution + conflict check → [A] assembly + generation
+```
+
+- **AI recommendations are advisory only.** Assembly always uses the reviewed
+  manifests and files under `modules/`; hallucinated (non-existent) module
+  recommendations are filtered out during validation.
+- **Conflicts are checked before assembly** — version, route, and environment
+  variable conflicts across selected modules. A failure prints the cause, the
+  modules involved, and a suggested fix, then halts the generation flow.
+
+Example suggested fixes:
+- Change a route prefix
+- Rename an environment variable
+- Avoid combining mutually conflicting dependencies
+
+
+Contents in This Repository
+----------------------------
+
+### Directory Structure
+
+```
+src/scaffold/
+├── engine/     # assembly engine
+├── ai/         # LLM analysis/recommendation
+├── ui.py       # interactive screens
+└── cli.py      # commands and overall flow
+templates/      # Jinja2 templates for generated projects (rendered files)
+modules/        # reviewed modules (each: manifest.yaml + files/)
+tests/          # keeps engine coverage at 70%+ (CI gate)
+docs/           # module contribution guide
+```
+
+* `pyproject.toml` — package definition and dependencies
+* `.env.example` — required environment variable template (`GEMINI_API_KEY`, etc.)
+* `.github/workflows/ci.yml` — this repo's own CI (separate from `modules/ci`,
+  which is delivered *into* generated projects)
+* `docs/CONTRIBUTING-MODULES.md` — guide for adding new modules
+* `LICENSE` — full Apache-2.0 text
+
+
+Modules
+-------
+
+Module authors must pass conflict checking before a module can be added:
+
+- **Version conflicts** — pass if requirement ranges intersect, fail otherwise;
+  a recommended version is suggested when a common range exists
+- **Route conflicts** — fail if a prefix or endpoint path collides with another module
+- **Environment variable conflicts** — fail if two modules use the same variable
+  name with different default values
+
+### Registered Modules (10)
+
+**[settings](modules/settings)** — ✅ done (real code + tests)
+
+**[docker](modules/docker)** — ✅ done (fixed a top-level named-volume declaration bug in docker-compose.yml)
+
+**[ci](modules/ci)** — ✅ config-file module, effectively done (auto-adding a DB service block is pending team discussion)
+
+**[cors](modules/cors)**, **[logging](modules/logging)**, **[exception-handler](modules/exception-handler)** — ✅ done (auto-wired into main.py via the `registrations` field, tests included)
+
+**[database](modules/database)** — ✅ done (PostgreSQL/MySQL/Supabase + Alembic, conditional files/env/docker_services per `db_type`)
+
+**[redis-cache](modules/redis-cache)** — ✅ done (connection code + `@cached` decorator, tests included)
+
+**[jwt-auth](modules/jwt-auth)** — ✅ done (bcrypt hashing + JWT access/refresh tokens)
+
+**[rbac](modules/rbac)** — ✅ done (integrates with jwt-auth's `decode_access_token`, role-based access control)
+
+Adding a new module = a `modules/<name>/` folder with `manifest.yaml` + `files/`.
+No engine code changes required — see [docs/CONTRIBUTING-MODULES.md](docs/CONTRIBUTING-MODULES.md).
+
+
+Development
+-----------
+
+### Running Tests
+
+```bash
+pytest -s              # full suite
+pytest --cov=src/scaffold/engine --cov-fail-under=70   # same coverage gate as CI
+```
+
+### CI
+
+Every push/PR runs on GitHub Actions against Python 3.12: installs with
+`pip install -e ".[dev]"`, then enforces the 70% engine coverage gate.
+See [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+### Contributing a New Module
+
+1. Write `modules/<name>/manifest.yaml` (declare version range, routes, env vars)
+2. Add the real code under `modules/<name>/files/`
+3. Confirm conflict checks pass (`pytest`)
+4. Follow the full process in [docs/CONTRIBUTING-MODULES.md](docs/CONTRIBUTING-MODULES.md)
+
+
+License
+-------
+
+Apache-2.0. See the [LICENSE](LICENSE) file for the full text.
