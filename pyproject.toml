@@ -48,3 +48,9 @@ where = ["src"]
 # pytest 기본 설정: 테스트는 tests/ 폴더에서만 탐색
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# integration = 실제 저장소의 modules/ 디렉터리를 라이브 데이터로 읽는 테스트.
+# 손으로 만든 ModuleManifest나 tmp_path에 격리된 데이터만 쓰는 테스트는 마킹하지 않는다(단위테스트).
+# `pytest -m "not integration"`으로 단위테스트만 빠르게 돌릴 수 있다. CI는 마커와 무관하게 전체를 돈다.
+markers = [
+    "integration: 실제 modules/ 디렉터리를 읽는 테스트 (신규 모듈 추가 시 여기 걸린다)",
+]

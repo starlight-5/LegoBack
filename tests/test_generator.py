@@ -21,6 +21,32 @@ def _make(tmp_path: Path, selected: list[str], name="demo") -> Path:
     return out
 
 
+def test_duplicate_dest_rejected(tmp_path):
+    """[2.4.1] 같은 도착 경로면 덮어쓰지 않고 에러."""
+    # Arrange
+    a = ModuleManifest(name="a", files=[FileMapping(src="f", dest="src/x.py")])
+    b = ModuleManifest(name="b", files=[FileMapping(src="f", dest="src/x.py")])
+
+    # Act & Assert
+    with pytest.raises(DuplicateFileError):
+        copy_module_files(tmp_path, ["a", "b"], {"a": a, "b": b}, MODULES)
+
+
+def test_merge_packages_dedups_and_uses_intersection_of_version_ranges():
+    """같은 패키지를 여러 모듈이 요구하면 하나로 합치되, 더 좁은(교집합) 버전 범위를 채택한다."""
+    # Arrange
+    a = ModuleManifest(name="a", pip_packages=["pydantic>=2.0"])
+    b = ModuleManifest(name="b", pip_packages=["pydantic>=2.5"])
+
+    # Act
+    merged = merge_packages(["a", "b"], {"a": a, "b": b})
+
+    # Assert
+    assert sum("pydantic" in p for p in merged) == 1
+    assert any(pkg == "pydantic>=2.5" for pkg in merged)
+
+
+@pytest.mark.integration
 def test_bare_skeleton(tmp_path):
     """[2.3.1] 완료 기준: 모듈 0개여도 /health 앱과 기본 테스트가 존재."""
     out = _make(tmp_path, [])
@@ -30,6 +56,7 @@ def test_bare_skeleton(tmp_path):
     assert (out / ".gitignore").exists()
 
 
+@pytest.mark.integration
 def test_module_delivery(tmp_path):
     """[2.4.1~2.4.4] 파일 복사 + 라우터 등록 + .env 주석."""
     out = _make(tmp_path, ["jwt-auth"])
@@ -42,6 +69,7 @@ def test_module_delivery(tmp_path):
     assert "python-jose" in py and "fastapi" in py
 
 
+@pytest.mark.integration
 def test_deterministic(tmp_path):
     """같은 입력 = 같은 결과물 (결정적 출력)."""
     a = _make(tmp_path / "run1", ["jwt-auth"], "demo")
@@ -50,28 +78,7 @@ def test_deterministic(tmp_path):
         assert (a / f).read_bytes() == (b / f).read_bytes()
 
 
-def test_duplicate_dest_rejected(tmp_path):
-    """[2.4.1] 같은 도착 경로면 덮어쓰지 않고 에러."""
-    a = ModuleManifest(name="a", files=[FileMapping(src="f", dest="src/x.py")])
-    b = ModuleManifest(name="b", files=[FileMapping(src="f", dest="src/x.py")])
-    with pytest.raises(DuplicateFileError):
-        copy_module_files(tmp_path, ["a", "b"], {"a": a, "b": b}, MODULES)
-
-
-def test_merge_packages_dedup():
-    a = ModuleManifest(name="a", pip_packages=["pydantic>=2.0"])
-    b = ModuleManifest(name="b", pip_packages=["pydantic>=2.5"])
-    merged = merge_packages(["a", "b"], {"a": a, "b": b})
-    assert sum("pydantic" in p for p in merged) == 1
-
-
-def test_merge_packages_uses_intersection_of_version_ranges():
-    a = ModuleManifest(name="a", pip_packages=["pydantic>=2.0"])
-    b = ModuleManifest(name="b", pip_packages=["pydantic>=2.5"])
-    merged = merge_packages(["a", "b"], {"a": a, "b": b})
-    assert any(pkg == "pydantic>=2.5" for pkg in merged)
-
-
+@pytest.mark.integration
 def test_full_ten_module_generation(tmp_path):
     """10종 전체 선택 → 충돌 없이 생성, compose에 db·redis 서비스 포함."""
     m = load_manifests(MODULES)
@@ -87,6 +94,7 @@ def test_full_ten_module_generation(tmp_path):
     assert "DATABASE_URL" in env and "@db:5432" in env
 
 
+@pytest.mark.integration
 def test_alembic_files_delivered(tmp_path):
     """[Alembic] database 모듈 선택 시 alembic.ini/migrations 셋업이 함께 배달된다."""
     out = _make(tmp_path, ["database"])
@@ -100,6 +108,7 @@ def test_alembic_files_delivered(tmp_path):
     readme = (out / "README.md").read_text(encoding="utf-8")
     assert "alembic revision --autogenerate" in readme
 
+@pytest.mark.integration
 def test_named_volumes_declared_at_top_level(tmp_path):
     """[신규] named volume(db-data 등)을 쓰는 서비스가 있으면 최상단 volumes:에도
     선언돼야 한다 — 안 그러면 docker compose가 "undefined volume"으로 거부한다."""
@@ -108,6 +117,7 @@ def test_named_volumes_declared_at_top_level(tmp_path):
     assert "\nvolumes:\n  db-data:" in compose
 
 
+@pytest.mark.integration
 def test_docker_service_ports_are_env_overridable(tmp_path):
     """[신규] db/db-mysql/redis 호스트 포트는 compose 변수(${..._PORT:-기본값})로 빠져있어
     포트가 겹쳐도 .env 한 줄만 고치면 되고, .env에는 그 기본값이 채워진다.
@@ -134,6 +144,7 @@ def test_docker_service_ports_are_env_overridable(tmp_path):
 
 
 
+@pytest.mark.integration
 def test_compose_project_name_unique_per_generation(tmp_path):
     """[신규] docker-compose.yml에 매 생성마다 다른 프로젝트 이름이 박혀서, 폴더 이름이
     같은 두 프로젝트라도 Compose의 볼륨/네트워크 네임스페이스가 겹치지 않는다."""
@@ -152,6 +163,7 @@ def test_compose_project_name_unique_per_generation(tmp_path):
     assert name_a.startswith("demo-") and name_b.startswith("demo-")
 
 
+@pytest.mark.integration
 def test_registrations_wired(tmp_path):
     """[선택2] 등록 함수가 main.py에서 호출되는지 — 세 모듈 전부."""
     out = _make(tmp_path, ["cors", "logging", "exception-handler"])
