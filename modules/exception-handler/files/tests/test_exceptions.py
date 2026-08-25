@@ -13,7 +13,7 @@ EXCEPTIONS = MODULES / "exception-handler" / "files" / "src" / "core"
 
 sys.path.insert(0, str(EXCEPTIONS))
 
-from exceptions import apply  # noqa: E402
+from src.core.exceptions import apply  # noqa: E402
 
 
 def _make_app() -> FastAPI:

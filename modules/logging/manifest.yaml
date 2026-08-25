@@ -7,7 +7,7 @@ files:
   - src: files/src/core/logging_mw.py
     dest: src/core/logging_mw.py
     pip_packages: []
-    
+
   - src: files/tests/test_logging.py
     dest: tests/test_logging.py
     pip_packages: []
