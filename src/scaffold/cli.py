@@ -212,7 +212,7 @@ def _run_setup(project_dir: Path, ordered: list[str]) -> bool:
     bin_dir = "Scripts" if os.name == "nt" else "bin"
     py_name = "python.exe" if os.name == "nt" else "python"
     venv_python = venv_dir / bin_dir / py_name
-    return _run([str(venv_python), "-m", "pip", "install", "-e", "."], project_dir)
+    return _run([str(venv_python), "-m", "pip", "install", "-e", ".[dev]"], project_dir)
 
 
 # 입력: project_name(str) - 생성된 프로젝트 이름, ordered(list[str]) - 포함된 모듈 목록,
@@ -227,7 +227,7 @@ def _print_success(project_name: str, ordered: list[str], setup_ok: bool) -> Non
     else:
         if not setup_ok:
             typer.echo("  python -m venv .venv")
-            typer.echo("  pip install -e .")
+            typer.echo("  pip install -e \".[dev]\"")
         # venv 생성·설치는 자동으로 끝냈어도, 활성화는 지금 셸의 상태를 바꾸는 작업이라
         # 자식 프로세스로 대신해줄 수 없다 — 이 줄만큼은 setup_ok여도 항상 안내해야 한다.
         typer.echo("  .venv\\Scripts\\activate")
