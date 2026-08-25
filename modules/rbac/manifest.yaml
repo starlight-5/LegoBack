@@ -8,10 +8,10 @@ files:
     dest: src/core/rbac.py
   - src: files/src/routers/admin.py
     dest: src/routers/admin.py
-    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+    when: { "db_type": ["postgresql", "mysql"] }
   - src: files/tests/test_admin.py
     dest: tests/test_admin.py
-    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+    when: { "db_type": ["postgresql", "mysql"] }
   - src: files/src/routers/admin_mongo.py
     dest: src/routers/admin.py
     when: { "db_type": ["mongodb"] }

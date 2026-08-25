@@ -59,8 +59,8 @@ def _merge_specifiers(specifiers: list[str]) -> str:
         _, best = max(lower_bounds, key=lambda item: item[1])
         parts.append(f">={best}")
     if upper_bounds:
-        _, best = min(upper_bounds, key=lambda item: item[1])
-        parts.append(f"<={best}")
+        op, best = min(upper_bounds, key=lambda item: item[1])
+        parts.append(f"{op}{best}")
     return ",".join(parts)
 
 

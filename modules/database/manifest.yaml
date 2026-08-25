@@ -1,34 +1,34 @@
 name: database
-description: DB 연동 (PostgreSQL/MySQL/Supabase는 SQLAlchemy+Alembic, MongoDB는 Motor+Beanie)
+description: DB 연동 (PostgreSQL/MySQL은 SQLAlchemy+Alembic, MongoDB는 Motor+Beanie)
 category: data
 depends_on:
   - settings
 files:
   - src: files/src/core/db.py
     dest: src/core/db.py
-    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+    when: { "db_type": ["postgresql", "mysql"] }
   - src: files/alembic.ini
     dest: alembic.ini
-    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+    when: { "db_type": ["postgresql", "mysql"] }
   - src: files/migrations/env.py
     dest: migrations/env.py
-    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+    when: { "db_type": ["postgresql", "mysql"] }
   - src: files/migrations/script.py.mako
     dest: migrations/script.py.mako
-    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+    when: { "db_type": ["postgresql", "mysql"] }
   - src: files/migrations/versions/.gitkeep
     dest: migrations/versions/.gitkeep
-    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+    when: { "db_type": ["postgresql", "mysql"] }
   - src: files/src/core/db_mongo.py
     dest: src/core/db.py
     when: { "db_type": ["mongodb"] }
 pip_packages:
   - spec: sqlalchemy>=2.0
-    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+    when: { "db_type": ["postgresql", "mysql"] }
   - spec: alembic>=1.13
-    when: { "db_type": ["postgresql", "mysql", "supabase"] }
+    when: { "db_type": ["postgresql", "mysql"] }
   - spec: psycopg2-binary>=2.9
-    when: { "db_type": ["postgresql", "supabase"] }
+    when: { "db_type": ["postgresql"] }
   - spec: pymysql>=1.1
     when: { "db_type": ["mysql"] }
   - spec: motor>=3.3
@@ -46,10 +46,6 @@ env_vars:
     default: mysql+pymysql://app:app@db-mysql:3306/app
     description: MySQL 접속 주소 (호스트명 db-mysql = docker-compose 서비스명)
     when: { "db_type": ["mysql"] }
-  - name: DATABASE_URL
-    default: ""
-    description: Supabase 프로젝트의 Connection string (Project Settings > Database > Connection string, PostgreSQL 형식)을 그대로 붙여넣으세요
-    when: { "db_type": ["supabase"] }
   - name: DB_PORT
     default: "5432"
     description: postgres 컨테이너를 게시할 호스트 포트(로컬 DB 클라이언트로 직접 붙을 때 사용). 앱은 docker-compose 내부망의 db:5432로 접속하므로 이 값을 바꿔도 앱 동작엔 영향 없음 — 다른 프로젝트와 포트가 겹치면 이 값만 바꾸세요.
@@ -99,5 +95,5 @@ docker_services:
 options:
   db_type:
     question: "사용할 데이터베이스 종류를 선택하세요"
-    choices: [postgresql, mysql, supabase, mongodb]
+    choices: [postgresql, mysql, mongodb]
     default: postgresql
