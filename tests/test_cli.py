@@ -64,7 +64,7 @@ def test_run_setup_non_docker_calls_venv_then_pip(tmp_path, monkeypatch):
     assert len(calls) == 2
     assert calls[0][:3] == [cli.sys.executable, "-m", "venv"]
     assert calls[0][3] == str(tmp_path / ".venv")
-    assert calls[1][1:] == ["-m", "pip", "install", "-e", "."]
+    assert calls[1][1:] == ["-m", "pip", "install", "-e", ".[dev]"]
 
 
 def test_run_setup_venv_python_path_matches_os(tmp_path, monkeypatch):
@@ -151,7 +151,7 @@ def test_print_success_setup_failed_shows_manual_steps(capsys):
 
     # Assert
     assert "python -m venv .venv" in out
-    assert "pip install -e ." in out
+    assert 'pip install -e ".[dev]"' in out
 
 
 def test_print_success_docker_always_prints_compose_up(capsys):

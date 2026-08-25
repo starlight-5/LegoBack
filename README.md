@@ -85,9 +85,9 @@ legoback new demo-blog
 # enter: "블로그 만들거야. 로그인 필요해" (a blog with login)
 # → Gemini analyzes the input and recommends settings, jwt-auth, database
 #   (falls back to manual full-list selection without an API key)
-# → confirm via checkbox UI → project generated (venv + base deps are installed automatically right after generation)
+# → confirm via checkbox UI → project generated (venv + all deps, including dev tools like pytest, are installed automatically right after generation)
 cd demo-blog
-pip install -e ".[dev]"    # adds dev-only tools (pytest, etc.) for testing
+.venv\Scripts\activate
 pytest                      # 3 tests pass
 uvicorn src.main:app --reload                        # check /auth API at /docs
 ```

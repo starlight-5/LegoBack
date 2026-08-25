@@ -82,9 +82,9 @@ legoback new my-blog           # 대화형 생성 흐름 실행
 legoback new demo-blog
 # "블로그 만들거야. 로그인 필요해" 입력
 # → Gemini API가 분석해 settings, jwt-auth, database 추천 (API 키 없으면 전체 목록 수동 선택으로 대체)
-# → 체크박스 선택 → 생성 (생성 직후 venv·기본 의존성 설치까지 자동 실행됨)
+# → 체크박스 선택 → 생성 (생성 직후 venv·의존성 설치까지 자동 실행됨, pytest 등 dev 도구 포함)
 cd demo-blog
-pip install -e ".[dev]"    # 테스트용 dev 도구(pytest 등)만 추가 설치
+.venv\Scripts\activate
 pytest                     # 테스트 통과
 uvicorn src.main:app --reload                        # /docs 에서 /health 확인
 ```
