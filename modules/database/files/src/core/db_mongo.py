@@ -45,3 +45,16 @@ async def get_db() -> None:
     client = AsyncIOMotorClient(url)
     await init_beanie(database=client.get_default_database(), document_models=_document_models())
     _initialized = True
+
+
+def apply(app) -> None:
+    """main.py에서 app 생성 직후 호출됨.
+
+    SQL 변형(db.py)의 apply()는 마이그레이션을 미리 실행하는 역할이고, Mongo는
+    마이그레이션이 없으니 그 자리에서 할 일이 없다. 대신 원래 get_db()가 "첫 요청이
+    올 때"까지 미루던 Beanie 초기화를, 서버가 뜨는 시점에 미리 해둔다 — 그래야
+    첫 요청을 받은 사용자만 초기화 지연을 떠안는 일이 없다.
+    """
+    @app.on_event("startup")
+    async def _init_beanie() -> None:
+        await get_db()

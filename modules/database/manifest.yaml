@@ -22,6 +22,12 @@ files:
   - src: files/src/core/db_mongo.py
     dest: src/core/db.py
     when: { "db_type": ["mongodb"] }
+  - src: files/tests/test_db.py
+    dest: tests/test_db.py
+    when: { "db_type": ["postgresql", "mysql"] }
+  - src: files/tests/test_db_mongo.py
+    dest: tests/test_db.py
+    when: { "db_type": ["mongodb"] }
 pip_packages:
   - spec: sqlalchemy>=2.0
     when: { "db_type": ["postgresql", "mysql"] }
