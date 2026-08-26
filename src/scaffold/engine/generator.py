@@ -59,8 +59,8 @@ def _merge_specifiers(specifiers: list[str]) -> str:
         _, best = max(lower_bounds, key=lambda item: item[1])
         parts.append(f">={best}")
     if upper_bounds:
-        _, best = min(upper_bounds, key=lambda item: item[1])
-        parts.append(f"<={best}")
+        op, best = min(upper_bounds, key=lambda item: item[1])
+        parts.append(f"{op}{best}")
     return ",".join(parts)
 
 
@@ -102,6 +102,7 @@ def create_skeleton(project_dir: Path, project_name: str,
 
     (project_dir / "src").mkdir(parents=True, exist_ok=True)
     (project_dir / "tests").mkdir(parents=True, exist_ok=True)
+    (project_dir / "logs").mkdir(parents=True, exist_ok=True)
     (project_dir / "src" / "__init__.py").touch()
 
     (project_dir / "src" / "main.py").write_text(
@@ -191,7 +192,10 @@ def write_docker(project_dir: Path, ordered: list[str],
     겹치지 않게 한다.
     """
     env = _env()
-    has_database = "database" in ordered
+    # "database" 모듈 선택 여부가 아니라, 실제로 alembic.ini가 배달되는지(=SQL 계열
+    # db_type)를 봐야 한다 — mongodb는 database 모듈이어도 alembic.ini/migrations가
+    # 없어서, 모듈 이름만 보면 COPY/마운트 대상이 없는데 시도하다가 빌드가 깨진다.
+    has_database = any(fm.dest == "alembic.ini" for name in ordered for fm in manifests[name].files)
     services: list[tuple[str, object]] = []
     for name in ordered:
         for svc_name, svc in sorted(manifests[name].docker_services.items()):

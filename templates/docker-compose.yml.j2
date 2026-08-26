@@ -9,9 +9,12 @@ services:
     env_file: .env
     volumes:
       - ./src:/app/src
+      - ./tests:/app/tests
+      - ./logs:/app/logs
 {% if has_database %}
       - ./migrations:/app/migrations
 {% endif %}
+
 {% if services %}
     depends_on:
 {% for name, svc in services %}

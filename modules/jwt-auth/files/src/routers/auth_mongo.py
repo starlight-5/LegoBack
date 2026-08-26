@@ -1,4 +1,4 @@
-"""회원가입·로그인·토큰 재발급 (jwt-auth 모듈)."""
+"""회원가입·로그인·토큰 재발급 (jwt-auth 모듈, MongoDB 변형)."""
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
 
 from src.core.db import get_db
 from src.models.user import User
@@ -85,25 +84,24 @@ def decode_access_token(token: str) -> dict:
     return payload
 
 
-@router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def signup(body: SignupRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    if db.query(User).filter(User.email == body.email).first() is not None:
+@router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(get_db)])
+async def signup(body: SignupRequest) -> TokenResponse:
+    if await User.find_one(User.email == body.email) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="이미 가입된 이메일입니다.")
 
     # 이 배포에 가입자가 아직 한 명도 없으면 첫 가입자를 ADMIN으로 만든다 (팀 결정사항, 2026-08-03).
-    is_first_user = db.query(User).first() is None
+    is_first_user = await User.find_one() is None
     role = "ADMIN" if is_first_user else "USER"
     user = User(email=body.email, hashed_password=pwd_context.hash(body.password), role=role)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    await user.insert()
 
     return _issue_tokens(user)
 
 
-@router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    user = db.query(User).filter(User.email == body.email).first()
+@router.post("/login", response_model=TokenResponse, dependencies=[Depends(get_db)])
+async def login(body: LoginRequest) -> TokenResponse:
+    user = await User.find_one(User.email == body.email)
     if user is None or not pwd_context.verify(body.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="이메일 또는 비밀번호가 올바르지 않습니다.",
@@ -125,4 +123,3 @@ def refresh(body: RefreshRequest) -> AccessTokenResponse:
 
     access_token = _create_token(payload["sub"], payload.get("role", "USER"), "access", secret, access_minutes)
     return AccessTokenResponse(access_token=access_token)
-
