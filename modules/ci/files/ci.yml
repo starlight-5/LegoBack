@@ -4,6 +4,62 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+{% if 'db' in services or 'db-mysql' in services or 'redis' in services %}
+    services:
+{% if 'db' in services %}
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+{% endif %}
+{% if 'db-mysql' in services %}
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: app
+          MYSQL_DATABASE: app
+          MYSQL_USER: app
+          MYSQL_PASSWORD: app
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uapp -papp"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+{% endif %}
+{% if 'redis' in services %}
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+{% endif %}
+{% endif %}
+{% if 'db' in services or 'db-mysql' in services or 'redis' in services %}
+    env:
+{% if 'db' in services %}
+      DATABASE_URL: postgresql://app:app@localhost:5432/app
+{% elif 'db-mysql' in services %}
+      DATABASE_URL: mysql+pymysql://app:app@127.0.0.1:3306/app
+{% endif %}
+{% if 'redis' in services %}
+      REDIS_URL: redis://localhost:6379/0
+{% endif %}
+{% endif %}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -11,4 +67,3 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
       - run: pytest
-      # TODO: database 모듈 사용 시 postgres 서비스 컨테이너 필요

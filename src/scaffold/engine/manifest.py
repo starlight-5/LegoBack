@@ -2,6 +2,8 @@
 
 이 파일의 수정 권한은 엔진 파트(A)에만 있다. 필드 추가는 이슈로 요청.
 """
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 WhenClause = dict[str, list[str]]
@@ -30,6 +32,7 @@ class FileMapping(BaseModel):
     src: str
     dest: str
     when: WhenClause | None = None
+    render: bool = False
 
 
 class EnvVar(BaseModel):
@@ -38,6 +41,7 @@ class EnvVar(BaseModel):
     default: str = ""
     description: str = ""
     when: WhenClause | None = None
+    generate: Literal["secret"] | None = None
 
 
 class RouterSpec(BaseModel):
