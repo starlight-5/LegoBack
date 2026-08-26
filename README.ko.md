@@ -67,7 +67,7 @@ copy .env.example .env
 #### 3. 테스트 확인
 
 ```bash
-pytest -s                      # 49개 테스트 통과 확인
+pytest -s                      # 53개 테스트 통과 확인
 ```
 
 #### 4. 프로젝트 생성
@@ -85,7 +85,7 @@ legoback new demo-blog
 # → 체크박스 선택 → 생성 (생성 직후 venv·의존성 설치까지 자동 실행됨, pytest 등 dev 도구 포함)
 cd demo-blog
 .venv\Scripts\activate
-pytest                     # 테스트 통과
+pytest                     # 17개 테스트 통과
 uvicorn src.main:app --reload                        # /docs 에서 /health 확인
 ```
 
@@ -146,7 +146,7 @@ docs/           # 모듈 기여 가이드 (구분 5)
 |---|---|---|---|
 | 1.1 입력 처리 | 1.1.1~1.1.5 | `cli.py` (_normalize, new) | 뼈대 완료, 메시지 다듬기 TODO |
 | 1.2 AI 분석 | 1.2.1 LLM 연동 | `ai/recommender.py` `_call_llm` | 완료 (Gemini API 연동, 구조화 출력) |
-| 1.2 AI 분석 | 1.2.2 계약 | `ai/schema.py` AnalysisResult | 완료 (변경은 B·D 합의) |
+| 1.2 AI 분석 | 1.2.2 계약 | `ai/schema.py` AnalysisResult | 완료 (변경은 합의) |
 | 1.2 AI 분석 | 1.2.3 검증 | `ai/recommender.py` analyze | 완료 (환각 모듈 제거 + 필수 모듈 보강) |
 | 1.3 추천 | 1.3.1~1.3.4 | `engine/loader.py`, `recommender.py`, `cli.py` | 완료 |
 | 2.1 선택·확인 | 2.1.1~2.1.3 | `cli.py` run_init_flow 루프 | 완료 |
@@ -163,7 +163,7 @@ docs/           # 모듈 기여 가이드 (구분 5)
 | 4.2 선택 UI | 4.2.1~4.2.4 | `ui.py` select_modules | 완료 (questionary) |
 | 4.3 진행 표시 | 4.3.1~4.3.3 | `ui.py` step (스피너) | 완료 |
 | 4.4 메시지 | 4.4.1~4.4.4 | `ui.py`, `engine/errors.py` | 완료 |
-| 5.x 생태계 | 5.1~5.2 | `docs/CONTRIBUTING-MODULES.md` | 초안 |
+| 5.x 생태계 | 5.1~5.2 | `docs/CONTRIBUTING-MODULES.md` | 완료 (구조·의존성·registrations·options/when 문법·검수 기준·승인 절차·PR 템플릿까지 작성) |
 
 
 Modules
@@ -184,15 +184,17 @@ Modules
 
 **[ci](modules/ci)** — ✅ 설정 파일형 — 사실상 완료 (DB 서비스 블록 자동 추가만 회의 대기)
 
-**[cors](modules/cors)**, **[logging](modules/logging)**, **[exception-handler](modules/exception-handler)** — ✅ 완료 (registrations 필드로 main.py 자동 연결, 테스트 포함)
+**[cors](modules/cors)** — ✅ 완료, registrations 필드로 main.py 자동 연결 (아직 테스트 파일 없음)
 
-**[database](modules/database)** — ✅ 완료 (PostgreSQL/MySQL/Supabase + Alembic, db_type별 조건부 파일·env·docker_services)
+**[logging](modules/logging)**, **[exception-handler](modules/exception-handler)** — ✅ 완료 (registrations 필드로 main.py 자동 연결, 테스트 포함)
+
+**[database](modules/database)** — ✅ 완료 (PostgreSQL/MySQL은 SQLAlchemy+Alembic, MongoDB는 Motor+Beanie; db_type별 조건부 파일·패키지·env·docker_services; SQL 계열은 서버 시작 시 `alembic upgrade head` 자동 실행, 테스트 포함)
 
 **[redis-cache](modules/redis-cache)** — ✅ 완료 (접속 코드 + `@cached` 데코레이터, 테스트 포함)
 
-**[jwt-auth](modules/jwt-auth)** — ✅ 완료 (bcrypt 해싱 + JWT access/refresh 토큰)
+**[jwt-auth](modules/jwt-auth)** — ✅ 완료 (bcrypt 해싱 + JWT access/refresh 토큰; SQL/MongoDB 변형 둘 다 지원, 테스트 포함)
 
-**[rbac](modules/rbac)** — ✅ 완료 (jwt-auth `decode_access_token` 연동, 역할 기반 접근 제어)
+**[rbac](modules/rbac)** — ✅ 완료 (jwt-auth `decode_access_token` 연동, 역할 기반 접근 제어; SQL/MongoDB 변형 둘 다 지원, 테스트 포함)
 
 새 모듈 추가 = `modules/<이름>/` 폴더 + manifest.yaml + files/. 코드 수정 불필요.
 자세한 방법: [docs/CONTRIBUTING-MODULES.md](docs/CONTRIBUTING-MODULES.md)

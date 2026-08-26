@@ -69,7 +69,7 @@ copy .env.example .env
 #### 3. Verify the test suite
 
 ```bash
-pytest -s                      # 49 tests should pass
+pytest -s                      # 53 tests should pass
 ```
 
 #### 4. Generate a project
@@ -88,7 +88,7 @@ legoback new demo-blog
 # → confirm via checkbox UI → project generated (venv + all deps, including dev tools like pytest, are installed automatically right after generation)
 cd demo-blog
 .venv\Scripts\activate
-pytest                      # 3 tests pass
+pytest                      # 17 tests pass
 uvicorn src.main:app --reload                        # check /auth API at /docs
 ```
 
@@ -161,15 +161,17 @@ Module authors must pass conflict checking before a module can be added:
 
 **[ci](modules/ci)** — ✅ config-file module, effectively done (auto-adding a DB service block is pending team discussion)
 
-**[cors](modules/cors)**, **[logging](modules/logging)**, **[exception-handler](modules/exception-handler)** — ✅ done (auto-wired into main.py via the `registrations` field, tests included)
+**[cors](modules/cors)** — ✅ done, auto-wired into main.py via the `registrations` field (no test file yet)
 
-**[database](modules/database)** — ✅ done (PostgreSQL/MySQL/Supabase + Alembic, conditional files/env/docker_services per `db_type`)
+**[logging](modules/logging)**, **[exception-handler](modules/exception-handler)** — ✅ done (auto-wired into main.py via the `registrations` field, tests included)
+
+**[database](modules/database)** — ✅ done (PostgreSQL/MySQL via SQLAlchemy+Alembic, MongoDB via Motor+Beanie; conditional files/packages/env/docker_services per `db_type`; auto-runs `alembic upgrade head` on startup for the SQL variants, tests included)
 
 **[redis-cache](modules/redis-cache)** — ✅ done (connection code + `@cached` decorator, tests included)
 
-**[jwt-auth](modules/jwt-auth)** — ✅ done (bcrypt hashing + JWT access/refresh tokens)
+**[jwt-auth](modules/jwt-auth)** — ✅ done (bcrypt hashing + JWT access/refresh tokens; separate SQL and MongoDB variants, tests included)
 
-**[rbac](modules/rbac)** — ✅ done (integrates with jwt-auth's `decode_access_token`, role-based access control)
+**[rbac](modules/rbac)** — ✅ done (integrates with jwt-auth's `decode_access_token`, role-based access control; separate SQL and MongoDB variants, tests included)
 
 Adding a new module = a `modules/<name>/` folder with `manifest.yaml` + `files/`.
 No engine code changes required — see [docs/CONTRIBUTING-MODULES.md](docs/CONTRIBUTING-MODULES.md).

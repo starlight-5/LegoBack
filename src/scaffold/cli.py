@@ -35,8 +35,6 @@ if sys.platform == "win32":
 app = typer.Typer(add_completion=False)
 
 
-# 입력: 없음
-# 출력: 없음 (Typer 콜백 — 앱 설명용, 로직 없음)
 @app.callback()
 def main():
     """AI 기반 FastAPI 초기 환경 설정 도구."""
@@ -47,15 +45,19 @@ NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")  # [1.1.1] 이름 규칙
 MODULES_DIR = Path(__file__).resolve().parents[2] / "modules"
 
 
-# 입력: text(str) - 원본 텍스트
-# 출력: str - 공백 정리 + 500자 제한한 텍스트
 def _normalize(text: str) -> str:
-    """[1.1.2] 공백 정리 + 길이 제한."""
+    """[1.1.2] 사용자 입력을 정리한다. 연속된 공백/줄바꿈을 하나로 합치고,
+    500자를 넘으면 잘라낸다.
+
+    Args:
+        text: 정리할 원본 텍스트.
+
+    Returns:
+        공백이 정리되고 500자로 제한된 텍스트.
+    """
     return " ".join(text.split())[:500]
 
 
-# 입력: project_name(str) - 생성할 프로젝트 이름(CLI 인자), verbose(bool) - 상세 로그 여부(--verbose)
-# 출력: 없음 (성공 시 프로젝트 폴더 생성, 실패 시 typer.Exit으로 종료)
 @app.command()
 def new(
     project_name: str = typer.Argument(..., help="영소문자·숫자·하이픈"),
@@ -88,13 +90,20 @@ def new(
         raise typer.Exit(1)
 
 
-# 입력: desc(str) - 현재까지의 설명, result(AnalysisResult) - 1차 분석 결과,
-#       manifests(dict) - 모듈 매니페스트
-# 출력: tuple[str, AnalysisResult] - (질문·답변이 합쳐진 설명, 재분석된 결과)
-#       result.sufficient가 True거나 질문이 없으면 원본 그대로 반환
 def _ask_clarifying_round(desc: str, result: AnalysisResult,
                            manifests: dict) -> tuple[str, AnalysisResult]:
-    """[1.1.3] 정보 부족 시 1라운드 보완 질문 → 답변을 설명에 합쳐 재분석."""
+    """[1.1.3] AI가 정보가 부족하다고 판단하면 보완 질문을 한 라운드 물어보고,
+    답변을 설명에 합쳐서 다시 분석한다. 이미 충분하거나 물어볼 질문이 없으면
+    원본을 그대로 돌려준다.
+
+    Args:
+        desc: 지금까지의 프로젝트 설명.
+        result: 1차 분석 결과.
+        manifests: 모듈명→매니페스트 매핑.
+
+    Returns:
+        (질문·답변이 합쳐진 설명, 재분석된 결과) 쌍.
+    """
     if result.sufficient or not result.clarifying_questions:
         return desc, result
 
@@ -108,19 +117,28 @@ def _ask_clarifying_round(desc: str, result: AnalysisResult,
     return desc, result
 
 
-# 입력: result(AnalysisResult) - 추천 모듈·근거가 담긴 분석 결과
-# 출력: 없음 (콘솔에 추천 모듈 목록 출력)
 def _print_recommendations(result: AnalysisResult) -> None:
-    """[1.3.4] 추천 모듈 + 근거 출력."""
+    """[1.3.4] 추천된 모듈과 그 근거를 콘솔에 목록으로 보여준다.
+
+    Args:
+        result: 추천 모듈·근거가 담긴 분석 결과.
+    """
     typer.echo("\n추천 모듈:")
     for m in result.recommended_modules:
         typer.echo(f"  • {m} — {ui.truncate(result.reasons.get(m, ''))}")
 
 
-# 입력: result(AnalysisResult) - 추천 모듈 정보, manifests(dict) - 전체 모듈 매니페스트
-# 출력: list[str] - 사용자가 최종 확인한 선택 모듈 목록 (1개 미만이면 재선택 반복)
 def _choose_modules(result: AnalysisResult, manifests: dict) -> list[str]:
-    """[2.1] 체크박스 선택 → 확인. N이면 재선택, 0개 선택은 거부."""
+    """[2.1] 체크박스로 모듈을 고르게 하고 확인을 받는다. 0개를 고르면 다시
+    고르게 하고, 확인 질문에 "아니오"라고 답하면 처음부터 다시 선택하게 한다.
+
+    Args:
+        result: 추천 모듈 정보.
+        manifests: 전체 모듈 매니페스트.
+
+    Returns:
+        사용자가 최종 확인한 선택 모듈 목록.
+    """
     while True:
         descriptions = {name: m.description for name, m in manifests.items()} #모듈 이름과 설명을 딕셔너리로 저장
         locked = [name for name, m in manifests.items() if m.required] # 필수 모듈만 저장
@@ -134,10 +152,17 @@ def _choose_modules(result: AnalysisResult, manifests: dict) -> list[str]:
             return selected
 
 
-# 입력: selected(list[str]) - 사용자가 선택한 모듈 목록, manifests(dict) - 모듈 매니페스트
-# 출력: list[str] - 의존성까지 포함해 정렬된 모듈 목록
 def _resolve_dependencies(selected: list[str], manifests: dict) -> list[str]:
-    """[2.2.2] 의존성 확장·정렬."""
+    """[2.2.2] 선택한 모듈의 의존성을 자동으로 채워 넣고 설치 순서대로 정렬한다.
+    자동으로 추가된 모듈이 있으면 화면에 안내한다.
+
+    Args:
+        selected: 사용자가 선택한 모듈 목록.
+        manifests: 모듈명→매니페스트 매핑.
+
+    Returns:
+        의존성까지 포함해 정렬된 모듈 목록.
+    """
     ordered = resolve(selected, manifests)
     added = [m for m in ordered if m not in selected]
     if added:
@@ -145,10 +170,17 @@ def _resolve_dependencies(selected: list[str], manifests: dict) -> list[str]:
     return ordered
 
 
-# 입력: ordered(list[str]) - 정렬된 모듈 목록, manifests(dict) - 모듈 매니페스트
-# 출력: dict[str, str] - 옵션 이름 → 사용자가 고른 값 (예: {"db_type": "mongodb"})
 def _ask_options(ordered: list[str], manifests: dict) -> dict[str, str]:
-    """[신규] ordered 모듈들이 선언한 옵션을 이름 기준으로 합쳐 한 번씩만 질문."""
+    """[신규] 설치될 모듈들이 선언한 옵션(예: db_type)을 이름 기준으로 합쳐서
+    한 번씩만 물어본다.
+
+    Args:
+        ordered: 정렬된 모듈 목록.
+        manifests: 모듈명→매니페스트 매핑.
+
+    Returns:
+        옵션 이름 → 사용자가 고른 값 (예: {"db_type": "mongodb"}).
+    """
     options = collect_options(ordered, manifests)
     answers: dict[str, str] = {}
     for name, opt in options.items():
@@ -156,11 +188,15 @@ def _ask_options(ordered: list[str], manifests: dict) -> dict[str, str]:
     return answers
 
 
-# 입력: ordered(list[str]) - 정렬된 모듈 목록, env_pairs - 수집된 환경변수,
-#       manifests(dict) - 모듈 매니페스트
-# 출력: 없음 (충돌 발견 시 경고 출력 후 typer.Exit(1)로 중단)
 def _check_conflicts(ordered: list[str], env_pairs, manifests: dict) -> None:
-    """[3.x] 버전·환경변수·라우트 충돌 검사. 발견되면 안내 후 중단."""
+    """[3.x] 버전·환경변수·라우트 충돌을 전부 검사한다. 하나라도 발견되면
+    내용과 해결 제안을 출력하고 생성 흐름을 중단시킨다.
+
+    Args:
+        ordered: 정렬된 모듈 목록.
+        env_pairs: 수집된 환경변수, (모듈명, EnvVar) 쌍 목록.
+        manifests: 모듈명→매니페스트 매핑.
+    """
     found = (
         cf.check_versions(ordered, manifests) # 패키지 버전 충돌
         + cf.check_env(env_pairs) # 환경변수 충돌
@@ -179,10 +215,17 @@ def _check_conflicts(ordered: list[str], env_pairs, manifests: dict) -> None:
 _SETUP_TIMEOUT_SEC = 300
 
 
-# 입력: cmd(list[str]) - 실행할 커맨드, cwd(Path) - 실행 위치
-# 출력: bool - 성공 여부 (실패해도 예외를 던지지 않고 경고만 출력)
 def _run(cmd: list[str], cwd: Path) -> bool:
-    """[신규] 서브프로세스 실행 + 실패 시 경고로 대체. 스피너와 출력이 섞이지 않도록 캡처."""
+    """[신규] 서브프로세스를 실행한다. 실패해도 예외를 던지지 않고 경고만
+    띄운 뒤 False를 돌려줘서, 전체 생성 흐름이 죽지 않게 한다.
+
+    Args:
+        cmd: 실행할 커맨드 (리스트 형태).
+        cwd: 실행할 위치.
+
+    Returns:
+        성공하면 True, 실패하거나 시간 초과되면 False.
+    """
     try:
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
                                  encoding="utf-8", errors="replace",
@@ -196,10 +239,20 @@ def _run(cmd: list[str], cwd: Path) -> bool:
     return True
 
 
-# 입력: project_dir(Path) - 생성된 프로젝트 경로, ordered(list[str]) - 포함된 모듈 목록
-# 출력: bool - 준비 단계(venv+install 또는 docker build) 성공 여부
 def _run_setup(project_dir: Path, ordered: list[str]) -> bool:
-    """[신규] 생성 직후 준비 단계 자동 실행. 실패해도 안내 문구로 대체될 뿐 흐름은 안 죽는다."""
+    """[신규] 프로젝트 생성 직후 준비 단계를 자동으로 실행한다. docker 모듈을
+    골랐으면 이미지를 빌드하고, 아니면 venv를 만들고 의존성을 설치한다.
+
+    실패해도 흐름은 안 죽는다 — 대신 이 함수가 False를 반환하고,
+    _print_success가 그만큼 수동 안내 문구를 보여준다.
+
+    Args:
+        project_dir: 생성된 프로젝트 경로.
+        ordered: 포함된 모듈 목록.
+
+    Returns:
+        준비 단계(venv+install 또는 docker build)가 성공했으면 True.
+    """
     if "docker" in ordered:
         if shutil.which("docker") is None:
             ui.warn("docker 명령을 찾을 수 없어 자동 빌드를 건너뜁니다.")
@@ -215,11 +268,15 @@ def _run_setup(project_dir: Path, ordered: list[str]) -> bool:
     return _run([str(venv_python), "-m", "pip", "install", "-e", ".[dev]"], project_dir)
 
 
-# 입력: project_name(str) - 생성된 프로젝트 이름, ordered(list[str]) - 포함된 모듈 목록,
-#       setup_ok(bool) - 준비 단계 자동 실행 성공 여부
-# 출력: 없음 (완료 안내와 다음 실행 명령 출력)
 def _print_success(project_name: str, ordered: list[str], setup_ok: bool) -> None:
-    """[4.4.2] 완료 안내 + 다음 명령. 준비 단계가 이미 자동 실행됐으면 그만큼 안내를 줄인다."""
+    """[4.4.2] 완료 메시지와 다음에 실행할 명령을 보여준다. 준비 단계가 이미
+    자동으로 끝났으면 그만큼 안내를 줄인다.
+
+    Args:
+        project_name: 생성된 프로젝트 이름.
+        ordered: 포함된 모듈 목록.
+        setup_ok: 준비 단계 자동 실행이 성공했는지 여부.
+    """
     ui.ok("완료! 다음 명령으로 시작하세요:")
     typer.echo(f"\n  cd {project_name}")
     if "docker" in ordered:
@@ -235,11 +292,16 @@ def _print_success(project_name: str, ordered: list[str], setup_ok: bool) -> Non
     typer.echo("\n  서버가 뜨면 브라우저에서 API 문서 확인:")
     ui.highlight("  http://localhost:8000/docs")
 
-# 입력: project_name(str) - 프로젝트 이름, project_dir(Path) - 생성 대상 경로,
-#       verbose(bool) - 상세 로그 여부
-# 출력: 없음 (전체 흐름을 순서대로 실행해 프로젝트 파일을 생성)
 def run_init_flow(project_name: str, project_dir: Path, verbose: bool) -> None:
-    """[4.1.4] 전체 여정의 지휘자. 각 단계 구현은 해당 파트 몫."""
+    """[4.1.4] 프로젝트 생성의 전체 흐름을 순서대로 지휘한다: 설명 입력 → AI
+    분석·추천 → 모듈 선택 → 의존성 해석 → 옵션 질문 → 충돌 검사 → 생성 →
+    완료 안내. 각 단계의 실제 구현은 해당 함수/파트가 담당한다.
+
+    Args:
+        project_name: 생성할 프로젝트 이름.
+        project_dir: 생성할 대상 경로.
+        verbose: 상세 로그 출력 여부.
+    """
     #  1. 모든 모듈의 매니페스트를 불러온다.
     manifests = load_manifests(MODULES_DIR)
     # 2. 프로젝트 설명을 입력받는다.

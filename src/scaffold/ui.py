@@ -16,40 +16,69 @@ except ImportError:                          # 테스트 환경 등 미설치 �
     questionary = None
 
 
-# 입력: 없음
-# 출력: 없음 (questionary 미설치 시 RuntimeError 발생)
 def _ensure_questionary() -> None:
+    """questionary 패키지가 설치돼 있는지 확인한다. 안 깔려 있으면(테스트 환경 등)
+    화면을 그리려다 애매하게 죽는 대신, 여기서 바로 명확한 에러를 던진다.
+
+    Raises:
+        RuntimeError: questionary가 설치되어 있지 않은 경우.
+    """
     if questionary is None:
         raise RuntimeError(
             "questionary 패키지가 설치되어 있지 않습니다. `pip install questionary`로 설치하세요."
         )
 
 
-# 입력: text(str) - 원본 텍스트, limit(int) - 최대 길이 (기본 30자, AI 프롬프트의 근거 길이 지침과 동일)
-# 출력: str - limit 이하면 그대로, 넘으면 잘라서 끝에 … 붙인 텍스트
 def truncate(text: str, limit: int = 30) -> str:
+    """긴 텍스트를 정해진 길이로 잘라서 화면에 깔끔하게 보이게 한다.
+
+    Args:
+        text: 원본 텍스트.
+        limit: 최대 길이 (기본 30자, AI 프롬프트의 근거 길이 지침과 동일).
+
+    Returns:
+        limit 이하면 그대로, 넘으면 잘라서 끝에 "…"을 붙인 텍스트.
+    """
     if len(text) <= limit:
         return text
     return text[: limit - 1] + "…"
 
 
-# 입력: module(str) - 모듈명, reasons(dict[str, str]) - 모듈명→추천 근거
-# 출력: str - 근거가 있으면 "모듈명 — 근거(30자 요약, AI가 짧게 생성 — truncate는 안전장치)", 없으면 모듈명 그대로
 def _choice_title(module: str, reasons: dict[str, str]) -> str:
+    """체크박스 목록에 보여줄 모듈 한 줄을 만든다.
+
+    Args:
+        module: 모듈명.
+        reasons: 모듈명→추천 근거 매핑.
+
+    Returns:
+        추천 근거가 있으면 "모듈명 — 근거"(근거는 truncate로 요약됨),
+        없으면 모듈명 그대로.
+    """
     if module not in reasons:
         return module
     return f"{module} — {truncate(reasons[module])}"
 
 
-# 입력: recommended(list[str]) - 기본 체크될 추천 모듈, all_modules(list[str]) - 전체 모듈 목록,
-#       reasons(dict[str, str]) - 모듈명→추천 근거, descriptions(dict[str, str]) - 모듈명→기능 설명,
-#       locked(list[str]) - 체크 해제 불가능하게 고정할 필수 모듈
-# 출력: list[str] - 사용자가 체크박스로 선택한 모듈 목록 (취소 시 KeyboardInterrupt 전파)
 def select_modules(recommended: list[str], all_modules: list[str],
                    reasons: dict[str, str],
                    descriptions: dict[str, str] | None = None,
                    locked: list[str] | None = None) -> list[str]:
-    """[4.2.2~4.2.4] 화살표 키 + 스페이스 체크박스. 추천 모듈은 기본 체크."""
+    """[4.2.2~4.2.4] 화살표 키와 스페이스바로 여러 개를 고르는 체크박스 화면을
+    보여준다. 추천 모듈은 미리 체크돼 있고, 필수 모듈은 체크 해제가 안 되게
+    잠긴다.
+
+    Args:
+        recommended: 기본으로 체크할 추천 모듈 목록.
+        all_modules: 전체 모듈 목록.
+        reasons: 모듈명→추천 근거 매핑.
+        descriptions: 모듈명→기능 설명 매핑.
+        locked: 체크 해제가 불가능하게 고정할 필수 모듈 목록.
+
+    Returns:
+        사용자가 체크박스로 선택한 모듈 목록. 취소하면 KeyboardInterrupt가
+        그대로 전파된다.
+    """
     _ensure_questionary()
     descriptions = descriptions or {}
     locked = set(locked or [])
@@ -70,24 +99,39 @@ def select_modules(recommended: list[str], all_modules: list[str],
     return answer or []
 
 
-# 입력: question(str) - 질문 문구, choices(list[str]) - 선택지, default(str | None) - 기본 선택값
-# 출력: str - 사용자가 고른 선택지 (취소 시 KeyboardInterrupt 전파)
 def select_option(question: str, choices: list[str], default: str | None = None) -> str:
-    """[신규] 화살표 키로 하나만 고르는 단일 선택 질문 (모듈 옵션용, 예: DB 종류)."""
+    """[신규] 화살표 키로 여러 선택지 중 하나만 고르는 단일 선택 화면을 보여준다
+    (모듈 옵션용, 예: DB 종류 고르기).
+
+    Args:
+        question: 질문 문구.
+        choices: 선택지 목록.
+        default: 기본으로 선택돼 있을 값.
+
+    Returns:
+        사용자가 고른 선택지. 취소하면 KeyboardInterrupt가 그대로 전파된다.
+    """
     _ensure_questionary()
     return questionary.select(question, choices=choices, default=default).unsafe_ask()
 
 
-# 입력: message(str) - 확인 메시지
-# 출력: bool - 사용자의 Y/N 응답 (기본값 Y)
 def confirm(message: str) -> bool:
-    """Y/N 확인, 기본값은 Y."""
+    """예/아니오로 답하는 확인 질문을 보여준다. 기본값은 "예"다.
+
+    Args:
+        message: 확인 메시지.
+
+    Returns:
+        사용자의 응답 (Y면 True). 취소하면 KeyboardInterrupt가 그대로 전파된다.
+    """
     _ensure_questionary()
     return bool(questionary.confirm(message).unsafe_ask())
 
 
-# [4.3.1~4.3.2] 작업 중 회전 스피너. with 블록으로 감싼 구간이 끝날 때까지 돈다.
 class _Spinner:
+    """[4.3.1~4.3.2] 작업이 진행되는 동안 콘솔에 회전하는 스피너를 보여준다.
+    `with` 블록으로 감싼 구간이 끝날 때까지 계속 돈다.
+    """
     _FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
     _INTERVAL = 0.08
 
@@ -122,34 +166,54 @@ class _Spinner:
         return False  # 예외는 그대로 전파
 
 
-# 입력: msg(str) - 표시할 단계 메시지
-# 출력: _Spinner - with 블록으로 감싸면 작업 중 회전 스피너를 보여주는 컨텍스트 매니저
 def step(msg: str) -> "_Spinner":
-    """[4.3.1~4.3.3] 현재 단계 안내 + 진행 중 스피너 (with 블록으로 사용)."""
+    """[4.3.1~4.3.3] "지금 뭘 하고 있는지" 메시지를 보여주면서, 그 작업이 끝날
+    때까지 스피너를 돌린다. `with ui.step("..."):` 형태로 쓴다.
+
+    Args:
+        msg: 표시할 단계 메시지.
+
+    Returns:
+        with 블록으로 쓸 수 있는 스피너 컨텍스트 매니저.
+    """
     return _Spinner(msg)
 
 
-# 입력: msg(str) - 성공 메시지
-# 출력: 없음 (콘솔에 초록색으로 출력)
 def ok(msg: str) -> None:
+    """성공 메시지를 초록색으로 출력한다.
+
+    Args:
+        msg: 표시할 메시지.
+    """
     typer.secho(f"✔ {msg}", fg=typer.colors.GREEN)
 
 
-# 입력: msg(str) - 경고 메시지
-# 출력: 없음 (콘솔에 노란색으로 출력)
 def warn(msg: str) -> None:
-    typer.secho(f"⚠ {msg}", fg=typer.colors.YELLOW)      # [4.4.3] 색상 구분
+    """경고 메시지를 노란색으로 출력한다.
+
+    Args:
+        msg: 표시할 메시지.
+    """
+    typer.secho(f"⚠ {msg}", fg=typer.colors.YELLOW)
 
 
-# 입력: msg(str) - 오류 메시지, hint(str) - 선택적 해결 힌트
-# 출력: 없음 (콘솔(stderr)에 빨간색으로 출력, hint 있으면 추가 줄 출력)
 def err(msg: str, hint: str = "") -> None:
+    """에러 메시지를 빨간색으로 출력한다(stderr로). hint를 주면 "이렇게
+    해결하세요" 줄도 같이 보여준다.
+
+    Args:
+        msg: 표시할 오류 메시지.
+        hint: 해결 방법 안내 (선택).
+    """
     typer.secho(f"✘ {msg}", fg=typer.colors.RED, err=True)
     if hint:
         typer.secho(f"  → {hint}", fg=typer.colors.RED, err=True)
 
 
-# 입력: msg(str) - 강조할 메시지 (예: 안내 URL)
-# 출력: 없음 (콘솔에 굵고 밑줄 친 청록색으로 출력해 눈에 띄게 함)
 def highlight(msg: str) -> None:
+    """URL처럼 눈에 띄어야 하는 메시지를 굵고 밑줄 친 청록색으로 출력한다.
+
+    Args:
+        msg: 강조해서 표시할 메시지.
+    """
     typer.secho(msg, fg=typer.colors.CYAN, bold=True, underline=True)

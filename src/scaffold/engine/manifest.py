@@ -8,10 +8,17 @@ WhenClause = dict[str, list[str]]
 
 
 def when_matches(when: WhenClause | None, option_answers: dict[str, str]) -> bool:
-    """[신규] when 조건이 사용자의 옵션 답변과 맞는지 판정.
+    """이 when 조건이 사용자가 고른 옵션 값과 맞는지 판정한다.
 
-    when이 없으면 항상 포함. dict의 키 여러 개는 AND, 한 키의 리스트 값은 OR로 매칭된다. 
-    오타방지.
+    when이 아예 없으면 항상 포함된다. 조건에 키가 여러 개면 전부 다 맞아야 하고
+    (AND), 한 키 안의 값이 여러 개면 그중 하나만 맞아도 된다 (OR).
+
+    Args:
+        when: 조건절 (없으면 항상 매칭).
+        option_answers: 옵션명→사용자 답변 매핑.
+
+    Returns:
+        조건이 사용자 답변과 매칭되면 True.
     """
     if not when:
         return True
@@ -58,7 +65,18 @@ class PackageSpec(BaseModel):
 
 
 def package_requirement(pkg: "str | PackageSpec") -> str:
-    """[신규] pip_packages 항목(문자열 또는 PackageSpec)에서 실제 요구사항 문자열을 꺼낸다."""
+    """pip_packages 목록의 항목 하나를 받아서 실제 pip 요구사항 문자열을 꺼낸다.
+
+    항목이 그냥 문자열("redis>=5.0")이면 그대로 쓰고, 조건부 패키지(PackageSpec)면
+    그 안의 spec 값을 꺼내온다. when 조건 유무와 상관없이 항상 같은 형태로 쓰기
+    위한 헬퍼다.
+
+    Args:
+        pkg: pip_packages 항목 (문자열 또는 PackageSpec).
+
+    Returns:
+        실제 pip 요구사항 문자열.
+    """
     return pkg.spec if isinstance(pkg, PackageSpec) else pkg
 
 
@@ -71,6 +89,21 @@ class ModuleOption(BaseModel):
     @field_validator("default")
     @classmethod
     def _default_in_choices(cls, v: str | None, info) -> str | None:
+        """옵션의 default 값이 그 옵션의 choices 목록 안에 실제로 있는지 확인한다.
+
+        예: choices가 [mysql, mongodb]인데 default를 postgresql로 적으면,
+        고를 수도 없는 값을 기본값으로 지정한 셈이라 에러로 막는다.
+
+        Args:
+            v: 검증할 default 값.
+            info: choices 등 다른 필드 값을 담은 pydantic ValidationInfo.
+
+        Returns:
+            검증을 통과한 default 값.
+
+        Raises:
+            ValueError: default 값이 choices에 없는 경우.
+        """
         choices = info.data.get("choices") or []
         if v is not None and v not in choices:
             raise ValueError(f"default '{v}'가 choices {choices}에 없습니다.")
