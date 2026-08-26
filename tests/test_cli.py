@@ -129,22 +129,20 @@ def test_run_setup_docker_missing_binary_skips(tmp_path, monkeypatch, capsys):
     assert "docker" in capsys.readouterr().out
 
 
-def test_print_success_setup_ok_skips_venv_and_install_but_keeps_activate(capsys):
-    """준비 단계가 이미 자동 실행됐으면 venv/설치 안내는 생략하되, 활성화 안내는 유지한다."""
+def test_print_success_setup_ok_skips_manual_steps(capsys):
+    """준비 단계가 이미 자동 실행됐으면 venv/설치 수동 안내를 생략하고 README.md로 안내한다."""
     # Act
     cli._print_success("demo", ["database"], setup_ok=True)
     out = capsys.readouterr().out
 
     # Assert
     assert "python -m venv" not in out
-    assert "pip install -e ." not in out
-    # 활성화는 자식 프로세스가 대신해줄 수 없는 셸 상태 변경이라 setup_ok여도 계속 안내해야 함
-    assert ".venv\\Scripts\\activate" in out
-    assert "uvicorn src.main:app --reload" in out
+    assert "pip install -e" not in out
+    assert "README.md" in out
 
 
 def test_print_success_setup_failed_shows_manual_steps(capsys):
-    """준비 단계가 실패했으면 venv 생성부터 수동 안내를 전부 보여준다."""
+    """준비 단계가 실패했으면 venv 생성부터 수동 안내를 보여주고, 그 다음은 README.md로 안내한다."""
     # Act
     cli._print_success("demo", ["database"], setup_ok=False)
     out = capsys.readouterr().out
@@ -152,14 +150,16 @@ def test_print_success_setup_failed_shows_manual_steps(capsys):
     # Assert
     assert "python -m venv .venv" in out
     assert 'pip install -e ".[dev]"' in out
+    assert "README.md" in out
 
 
-def test_print_success_docker_always_prints_compose_up(capsys):
-    """docker 모듈 선택 시 pip install 안내 없이 docker compose up만 안내한다."""
+def test_print_success_docker_skips_manual_steps_even_if_setup_failed(capsys):
+    """docker 모듈 선택 시에는 setup_ok가 False여도 venv/설치 수동 안내를 생략한다."""
     # Act
-    cli._print_success("demo", ["docker"], setup_ok=True)
+    cli._print_success("demo", ["docker"], setup_ok=False)
     out = capsys.readouterr().out
 
     # Assert
-    assert "docker compose up" in out
+    assert "python -m venv" not in out
     assert "pip install" not in out
+    assert "README.md" in out

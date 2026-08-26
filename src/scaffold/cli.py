@@ -269,28 +269,23 @@ def _run_setup(project_dir: Path, ordered: list[str]) -> bool:
 
 
 def _print_success(project_name: str, ordered: list[str], setup_ok: bool) -> None:
-    """[4.4.2] 완료 메시지와 다음에 실행할 명령을 보여준다. 준비 단계가 이미
-    자동으로 끝났으면 그만큼 안내를 줄인다.
+    """[4.4.2] 완료 메시지를 보여준다. 준비 단계(venv+install)가 자동으로 안
+    끝났으면 그것만 수동 안내하고, 그 다음 실행 방법은 생성된 프로젝트의
+    README.md를 가리킨다 — docker 유무, db_type 등 모듈 구성별 실행법이
+    거기 이미 정리되어 있어서 여기서 다시 나열할 필요가 없다.
 
     Args:
         project_name: 생성된 프로젝트 이름.
         ordered: 포함된 모듈 목록.
         setup_ok: 준비 단계 자동 실행이 성공했는지 여부.
     """
-    ui.ok("완료! 다음 명령으로 시작하세요:")
-    typer.echo(f"\n  cd {project_name}")
-    if "docker" in ordered:
-        typer.echo("  docker compose up")
-    else:
-        if not setup_ok:
-            typer.echo("  python -m venv .venv")
-            typer.echo("  pip install -e \".[dev]\"")
-        # venv 생성·설치는 자동으로 끝냈어도, 활성화는 지금 셸의 상태를 바꾸는 작업이라
-        # 자식 프로세스로 대신해줄 수 없다 — 이 줄만큼은 setup_ok여도 항상 안내해야 한다.
-        typer.echo("  .venv\\Scripts\\activate")
-        typer.echo("  uvicorn src.main:app --reload")
-    typer.echo("\n  서버가 뜨면 브라우저에서 API 문서 확인:")
-    ui.highlight("  http://localhost:8000/docs")
+    ui.ok("완료!")
+    if not setup_ok and "docker" not in ordered:
+        # venv 생성/설치는 프로젝트 폴더 안에서 실행해야 하므로, 이 경우에만 cd가 필요하다.
+        typer.echo(f"\n  cd {project_name}")
+        typer.echo("  python -m venv .venv")
+        typer.echo("  pip install -e \".[dev]\"")
+    typer.echo("\n  다음 단계는 README.md 파일을 참고하세요.")
 
 def run_init_flow(project_name: str, project_dir: Path, verbose: bool) -> None:
     """[4.1.4] 프로젝트 생성의 전체 흐름을 순서대로 지휘한다: 설명 입력 → AI
