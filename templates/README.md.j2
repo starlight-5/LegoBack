@@ -84,13 +84,14 @@ Swagger 화면에서 각 엔드포인트의 "Try it out" 버튼을 눌러 테스
 {% if 'rbac' in modules %}4. 우측 상단 **Authorize** 버튼 클릭 → `POST /auth/login`에서 첫 번째로 가입한 사람의
 email과 password 넣어서 `access_token` 붙여넣기
 5. `PATCH /admin/users/{email}/promote` — 두 번째 사람 이메일로 실행 → 200, role이 `ADMIN`으로
-6. `PATCH /admin/users/{email}/demote` — 방금 그 사람 다시 강등 → 200, role이 `USER`로
-7. 마지막 남은 ADMIN을 demote 시도 → **409** (마지막 관리자 보호)
+6. `PATCH /admin/users/{email}/demote` — 두 번째 사람 다시 강등 → 200, role이 `USER`로
+7. 첫 번째 사람(마지막 남은 ADMIN)을 demote 시도 → **409** (마지막 관리자 보호)
 8. 없는 이메일로 promote 시도 → **404**
-9. Authorize를 풀고(또는 USER 토큰으로) promote 시도 → **403**
+9. Authorize를 풀고 USER 토큰으로 promote 시도 → **403**
+10. Authorize를 풀고 promote 시도 → **401**
 {% endif %}
-{% if 'jwt-auth' in modules %}10. `POST /auth/login` — 로그인 확인
-11. `POST /auth/refresh` — refresh_token으로 새 access_token 발급 확인
+{% if 'jwt-auth' in modules %}11. `POST /auth/login` — 로그인 확인
+12. `POST /auth/refresh` — 11번 로그인 후 나온 refresh_token으로 새 access_token 발급 확인
 {% endif %}
 
 ### 6. 정리
