@@ -19,10 +19,10 @@ API 문서: http://localhost:8000/docs
 
 {% if 'docker' in modules and 'database' in modules %}
 
-## Docker로 실행하기 (PostgreSQL 기준)
+## Docker로 실행하기
 
-MySQL/MongoDB를 선택했다면 컨테이너 이름(`db` → `db-mysql`/`mongo`)과 접속 명령어만
-아래와 다르고, 나머지 순서는 동일합니다.
+DB 관련 명령어는 프로젝트 생성 시 고른 db_type(PostgreSQL/MySQL/MongoDB)에 맞는 것만
+골라서 실행하세요.
 
 ### 1. Docker Desktop이 켜져 있는지 확인
 
@@ -38,8 +38,10 @@ docker compose up --build -d
 ```
 {% if 'database' in modules %}
 
-### 3. 데이터베이스 테이블 만들기 (모델을 처음 쓸 때 한 번)
+### 3. 데이터베이스 준비
 
+**PostgreSQL / MySQL을 선택했다면** — 모델을 처음 쓸 때 한 번, 테이블을 만드는
+마이그레이션이 필요합니다:
 ```bash
 docker compose exec app alembic revision --autogenerate -m "create users table"
 docker compose restart app
@@ -47,10 +49,26 @@ docker compose restart app
 서버가 재시작되는 순간, 방금 만든 마이그레이션 파일이 자동으로 DB에 적용됩니다
 (`alembic upgrade head`를 따로 안 쳐도 됩니다).
 
-### 4. 테이블이 실제로 생겼는지 확인
+**MongoDB를 선택했다면** — 이 단계는 필요 없습니다. MongoDB는 컬렉션이 데이터를
+처음 넣을 때 자동으로 생기므로, 마이그레이션 없이 바로 다음 단계로 넘어가면 됩니다.
 
+### 4. 데이터 직접 확인하기
+
+아래 명령어는 이후 단계(회원 목록/역할 확인)에서도 그대로 재사용합니다.
+
+**PostgreSQL:**
 ```bash
-docker compose exec db psql -U app -d app -c "\d users"
+docker compose exec db psql -U app -d app -c "SELECT email, role FROM users;"
+```
+
+**MySQL:**
+```bash
+docker compose exec db-mysql mysql -uapp -papp app -e "SELECT email, role FROM users;"
+```
+
+**MongoDB:**
+```bash
+docker compose exec mongo mongosh -u app -p app --authenticationDatabase admin app --eval "db.users.find({}, {email:1, role:1, _id:0}).toArray()"
 ```
 {% endif %}
 
@@ -61,10 +79,7 @@ Swagger 화면에서 각 엔드포인트의 "Try it out" 버튼을 눌러 테스
 
 1. `POST /auth/signup` — 회원가입 (첫 번째로 가입한 사람은 자동으로 `ADMIN`)
 2. `POST /auth/signup` — 다른 email로 한 번 더 (두 번째 사람은 `USER`)
-3. DB에서 역할 확인:
-   ```bash
-   docker compose exec db psql -U app -d app -c "SELECT email, role FROM users;"
-   ```
+3. 위 4번의 명령어로 role 확인 (첫 번째는 `ADMIN`, 두 번째는 `USER`)
 {% endif %}
 {% if 'rbac' in modules %}4. 우측 상단 **Authorize** 버튼 클릭 → 1번에서 받은 `access_token` 붙여넣기
 5. `PATCH /admin/users/{email}/promote` — 두 번째 사람 이메일로 실행 → 200, role이 `ADMIN`으로
