@@ -10,8 +10,6 @@ legoback으로 생성된 프로젝트입니다.
 cd {{ project_name }}
 .venv\Scripts\activate
 uvicorn src.main:app --reload      # 로컬 실행
-# 또는 docker 모듈을 선택했다면:
-docker compose up
 ```
 
 동작 확인: http://localhost:8000/health
@@ -29,6 +27,9 @@ DB 관련 명령어는 프로젝트 생성 시 고른 db_type(PostgreSQL/MySQL/M
 ```bash
 docker ps
 ```
+docker ps후에 
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+같은 오류가 나올시 docker desktop이 켜져 있는지 확인하고, 켜져 있다면 재시작 후 다시 시도해보세요.
 
 ### 2. 컨테이너 빌드 및 실행
 
