@@ -10,6 +10,7 @@ DB 접속 주소는 alembic.ini에 적지 않고 여기서 DATABASE_URL 환경 �
 autogenerate가 어떤 모듈의 모델이 설치됐는지 몰라도 전부 인식한다.
 """
 import importlib
+import logging
 import os
 import pkgutil
 from logging.config import fileConfig
@@ -28,7 +29,19 @@ if MODELS_DIR.is_dir():
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # fileConfig()는 alembic.ini의 [logger_root]를 그대로 적용해 root 로거의
+    # 핸들러를 갈아치운다 — disable_existing_loggers=False로 막아도 root처럼
+    # [loggers]에 명시된 로거는 예외 없이 재구성된다. db.apply()가 서버 기동
+    # 시(startup 이벤트) 이 env.py를 거치므로, 그대로 두면 logging/
+    # exception-handler 모듈이 이미 붙여둔 app.log 핸들러가 사라져서 실제
+    # 요청에서는 로그가 하나도 안 남는다. root 핸들러를 잠깐 저장했다가
+    # fileConfig() 직후 그대로 복원해 이 문제를 피한다.
+    _root_logger = logging.getLogger()
+    _root_handlers = _root_logger.handlers[:]
+    _root_level = _root_logger.level
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
+    _root_logger.handlers[:] = _root_handlers
+    _root_logger.setLevel(_root_level)
 
 config.set_main_option(
     "sqlalchemy.url",
