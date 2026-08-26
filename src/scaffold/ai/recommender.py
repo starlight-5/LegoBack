@@ -35,10 +35,11 @@ class _ModuleReason(BaseModel):
 
 
 class _LLMSuggestion(BaseModel):
-    """_call_llm의 구조화 출력 스키마. AnalysisResult와는 별개(모듈 밖 계약 아님).
+    """Gemini에게 이 형식으로 답하라고 요청하는 구조화 출력 스키마.
+    AnalysisResult와는 별개다 (이 파일 밖에서는 안 쓰는 내부 계약).
 
-    reasons는 dict[str, str]이 아니라 리스트로 받는다: Gemini Developer API의
-    구조화 출력은 스키마에 additionalProperties(자유 형식 dict)를 허용하지 않는다.
+    reasons를 dict[str, str]이 아니라 리스트로 받는 이유: Gemini Developer API의
+    구조화 출력은 스키마에 자유 형식 dict(additionalProperties)를 허용하지 않는다.
     """
     sufficient: bool
     clarifying_questions: list[str] = Field(default_factory=list)
@@ -46,18 +47,30 @@ class _LLMSuggestion(BaseModel):
     reasons: list[_ModuleReason] = Field(default_factory=list)
 
 
-# 입력: manifests(dict[str, ModuleManifest]) - 모듈명→매니페스트 매핑
-# 출력: str - "- 이름 (카테고리): 설명" 형태로 정렬된 카탈로그 문자열
 def _build_catalog(manifests: dict[str, ModuleManifest]) -> str:
-    """모듈 카탈로그를 프롬프트에 주입할 문자열로 렌더링 ("- 이름 (카테고리): 설명" 형태)."""
+    """등록된 모듈 목록을, AI 프롬프트에 넣을 수 있는 "- 이름 (카테고리): 설명"
+    형태의 카탈로그 문자열로 바꾼다.
+
+    Args:
+        manifests: 모듈명→매니페스트 매핑.
+
+    Returns:
+        이름순으로 정렬된 카탈로그 문자열.
+    """
     modules = sorted(manifests.values(), key=lambda m: m.name)
     return "\n".join(f"- {m.name} ({m.category}): {m.description}" for m in modules)
 
 
-# 입력: description(str) - 사용자 자연어 설명, module_catalog(str) - _build_catalog 결과
-# 출력: str - Gemini에 전달할 프롬프트 전문
 def _build_prompt(description: str, module_catalog: str) -> str:
-    """LLM에 전달할 프롬프트 텍스트를 생성."""
+    """사용자 설명과 모듈 카탈로그를 합쳐서, Gemini에게 보낼 프롬프트 전문을 만든다.
+
+    Args:
+        description: 사용자가 입력한 자연어 설명.
+        module_catalog: _build_catalog가 만든 카탈로그 문자열.
+
+    Returns:
+        Gemini에 전달할 프롬프트 전문.
+    """
     return (
         "당신은 FastAPI 백엔드 스캐폴딩 도구의 모듈 추천 엔진입니다.\n\n"
         f"사용 가능한 모듈 목록:\n{module_catalog}\n\n"
@@ -71,10 +84,24 @@ def _build_prompt(description: str, module_catalog: str) -> str:
     )
 
 
-# 입력: description(str) - 사용자 자연어 설명, module_catalog(str) - _build_catalog 결과
-# 출력: _LLMSuggestion - Gemini 구조화 응답 (실패 시 예외 발생, 호출부 analyze()가 AIConnectionError로 변환)
 def _call_llm(description: str, module_catalog: str) -> _LLMSuggestion:
-    """[1.2.1] Gemini 호출. 실패 시 예외를 던진다."""
+    """[1.2.1] Gemini API를 실제로 호출해서 모듈 추천을 받아온다.
+
+    API 키가 없거나, 패키지가 안 깔려 있거나, 응답을 구조화된 형식으로 못
+    읽으면 예외를 던진다 — 여기서 직접 처리하지 않고, 호출한 쪽인 analyze()가
+    받아서 AIConnectionError 하나로 통일해서 다시 던진다.
+
+    Args:
+        description: 사용자가 입력한 자연어 설명.
+        module_catalog: _build_catalog가 만든 카탈로그 문자열.
+
+    Returns:
+        Gemini의 구조화 응답.
+
+    Raises:
+        RuntimeError: API 키 환경변수가 설정되지 않은 경우.
+        ValueError: Gemini 응답을 구조화된 형식으로 파싱하지 못한 경우.
+    """
 
     api_key = next((os.environ[k] for k in _API_KEY_ENVS if os.environ.get(k)), None)
 
@@ -100,12 +127,21 @@ def _call_llm(description: str, module_catalog: str) -> _LLMSuggestion:
     return response.parsed
 
 
-# 입력: picked(list[str]) - 추천된 모듈명 목록, reasons(dict[str, str]) - 모듈명→근거,
-#       manifests(dict[str, ModuleManifest]) - 실존 모듈 검증용 매니페스트
-# 출력: tuple[list[str], dict[str, str]] - (검증·필수모듈 보강된 모듈 목록, 근거 기본값 채운 딕셔너리)
 def _sanitize(picked: list[str], reasons: dict[str, str],
               manifests: dict[str, ModuleManifest]) -> tuple[list[str], dict[str, str]]:
-    """[1.2.3] 환각 모듈 제거 + 필수 모듈 보장 + 근거 기본값 채우기."""
+    """[1.2.3] AI가 추천한 목록을 실제로 써도 되는 상태로 정리한다.
+
+    실제로 존재하지 않는 모듈(환각)은 걸러내고, 항상 포함돼야 하는 필수 모듈은
+    AI가 빠뜨렸어도 강제로 넣어주고, 근거가 없는 모듈에는 기본 문구를 채워준다.
+
+    Args:
+        picked: AI가 추천한 모듈명 목록.
+        reasons: 모듈명→추천 근거 매핑.
+        manifests: 실존 모듈 검증에 쓸 매니페스트.
+
+    Returns:
+        (검증·필수모듈 보강된 모듈 목록, 근거 기본값이 채워진 매핑) 쌍.
+    """
     always = [m.name for m in manifests.values() if m.required]
     merged = always + [m for m in picked if m not in always]
     valid = [m for m in dict.fromkeys(merged) if m in manifests]
@@ -116,13 +152,21 @@ def _sanitize(picked: list[str], reasons: dict[str, str],
     return valid, out_reasons
 
 
-# 입력: picked(list[str]) - 추천 모듈명, reasons(dict[str, str]) - 모듈명→근거,
-#       manifests(dict[str, ModuleManifest]) - 매니페스트, sufficient(bool) - 정보 충분 여부,
-#       questions(list[str]) - 보완 질문 목록
-# 출력: AnalysisResult - _sanitize 적용 후 조립된 최종 분석 결과
 def _finalize(picked: list[str], reasons: dict[str, str], manifests: dict[str, ModuleManifest],
               sufficient: bool, questions: list[str]) -> AnalysisResult:
-    """_sanitize를 적용해 AnalysisResult로 조립."""
+    """_sanitize로 정리한 결과를, 이 파일 밖에서 쓰는 공식 결과 타입인
+    AnalysisResult로 조립한다.
+
+    Args:
+        picked: AI가 추천한 모듈명 목록.
+        reasons: 모듈명→추천 근거 매핑.
+        manifests: 실존 모듈 검증에 쓸 매니페스트.
+        sufficient: 설명이 추천하기에 충분했는지 여부.
+        questions: 보완 질문 목록.
+
+    Returns:
+        조립된 최종 분석 결과.
+    """
     valid, out_reasons = _sanitize(picked, reasons, manifests)
     return AnalysisResult(
         sufficient=sufficient,
@@ -132,11 +176,24 @@ def _finalize(picked: list[str], reasons: dict[str, str], manifests: dict[str, M
     )
 
 
-# 입력: description(str) - 사용자 자연어 설명, manifests(dict[str, ModuleManifest]) - 매니페스트
-# 출력: AnalysisResult - 분석 결과
-# 예외: AIConnectionError - Gemini 호출 실패 시(키 없음·패키지 미설치·네트워크/파싱 오류 등)
 def analyze(description: str, manifests: dict[str, ModuleManifest]) -> AnalysisResult:
-    """[1.2.2] 분석 실행 → AnalysisResult 반환. Gemini 호출 실패 시 AIConnectionError를 던진다."""
+    """[1.2.2] 사용자 설명을 분석해 모듈을 추천한다. 이 파일 밖에서는 이 함수만
+    쓰면 된다.
+
+    내부적으로 Gemini를 호출하는데, 어떤 이유로든(키 없음, 네트워크 오류,
+    파싱 실패 등) 실패하면 원인이 무엇이든 전부 AIConnectionError 하나로
+    통일해서 던진다 — 호출하는 쪽은 이 예외 하나만 잡으면 된다.
+
+    Args:
+        description: 사용자가 입력한 자연어 설명.
+        manifests: 모듈명→매니페스트 매핑.
+
+    Returns:
+        추천 모듈·근거·보완 질문이 담긴 분석 결과.
+
+    Raises:
+        AIConnectionError: Gemini 호출이 실패한 경우.
+    """
     catalog = _build_catalog(manifests)
     try:
         suggestion = _call_llm(description, catalog)
