@@ -40,6 +40,13 @@ def apply(app) -> None:
     파일 자체를 새로 만드는 것(`alembic revision --autogenerate`)은 모델이
     바뀔 때마다 사람이 내용을 확인하며 해야 하지만, 이미 만들어져 검토까지
     끝난 파일을 적용하는 건 안전하므로 이 부분만 자동화했다.
+
+    주의: migrations/env.py가 alembic.ini를 읽을 때 logging.config.fileConfig()를
+    호출하는데, 이게 root 로거 핸들러를 alembic.ini의 [logger_root] 설정으로
+    갈아치운다. 그대로 두면 이 startup 이벤트가 실행되는 순간 logging/
+    exception-handler 모듈이 이미 붙여둔 app.log 핸들러가 사라져서, 서버가 뜬
+    뒤 실제 요청에서는 로그가 하나도 안 남는 버그가 생긴다. env.py가 fileConfig()
+    호출 전후로 root 핸들러를 저장·복원하는 이유가 이거다.
     """
     @app.on_event("startup")
     def _run_migrations() -> None:

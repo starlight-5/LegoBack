@@ -40,8 +40,10 @@ def _make_app() -> FastAPI:
     return app
 
 
-def test_http_exception_handler():
-    """HTTPException이 일관된 JSON 응답으로 변환되는지 검증."""
+def test_http_exception_handler(tmp_path, monkeypatch):
+    """HTTPException이 일관된 JSON 응답으로 변환되고 exception.log에 기록되는지 검증."""
+
+    monkeypatch.chdir(tmp_path)
 
     client = TestClient(_make_app())
 
@@ -53,9 +55,14 @@ def test_http_exception_handler():
         "message": "테스트용 HTTP 예외입니다.",
     }
 
+    log_content = (tmp_path / "logs" / "exception.log").read_text(encoding="utf-8")
+    assert "HTTP error: GET /test/http-error → 404" in log_content
 
-def test_validation_exception_handler():
-    """요청 데이터 검증 오류가 일관된 JSON 응답으로 변환되는지 검증."""
+
+def test_validation_exception_handler(tmp_path, monkeypatch):
+    """요청 데이터 검증 오류가 일관된 JSON 응답으로 변환되고 exception.log에 기록되는지 검증."""
+
+    monkeypatch.chdir(tmp_path)
 
     client = TestClient(_make_app())
 
@@ -71,6 +78,9 @@ def test_validation_exception_handler():
     assert body["error"] == "VALIDATION_ERROR"
     assert body["message"] == "요청 데이터가 올바르지 않습니다."
     assert "details" in body
+
+    log_content = (tmp_path / "logs" / "exception.log").read_text(encoding="utf-8")
+    assert "Validation error: GET /test/validation" in log_content
 
 
 def test_unexpected_exception_handler(tmp_path, monkeypatch):

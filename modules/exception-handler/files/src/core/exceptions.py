@@ -7,8 +7,9 @@ FastAPI에서 발생하는 예외를 일관된 JSON 응답으로 변환한다.
 - RequestValidationError: 요청 데이터 검증 오류
 - Exception: 처리되지 않은 서버 예외
 
-처리되지 않은 서버 예외는 exception.log에 traceback을 기록하고,
-클라이언트에는 내부 오류 정보를 노출하지 않는다.
+200이 아닌 모든 에러 응답(4xx/5xx)을 exception.log에 남긴다. 처리되지
+않은 서버 예외(5xx)는 traceback까지 함께 기록하고, 클라이언트에는 내부
+오류 정보를 노출하지 않는다.
 
 등록:
 manifest.yaml의 registrations에 선언된
@@ -48,7 +49,9 @@ def _configure_exception_logging() -> None:
 
     exception_handler.setFormatter(formatter)
 
-    logger.setLevel(logging.ERROR)
+    # HTTPException/검증 오류(4xx)는 warning으로, 처리되지 않은 서버 예외(5xx)는
+    # error로 기록한다 — WARNING으로 낮춰야 4xx도 걸러지지 않고 파일에 남는다.
+    logger.setLevel(logging.WARNING)
 
     # apply()가 여러 번 호출되어도 handler가 중복 등록되지 않도록 한다.
     logger.handlers.clear()
@@ -63,7 +66,15 @@ async def handle_http_exception(
     request: Request,
     exc: HTTPException,
 ) -> JSONResponse:
-    """HTTPException을 일관된 JSON 응답으로 변환한다."""
+    """HTTPException을 일관된 JSON 응답으로 변환하고 exception.log에 기록한다."""
+
+    logger.warning(
+        "HTTP error: %s %s → %s %s",
+        request.method,
+        request.url.path,
+        exc.status_code,
+        exc.detail,
+    )
 
     return JSONResponse(
         status_code=exc.status_code,
@@ -78,7 +89,14 @@ async def handle_validation_exception(
     request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
-    """요청 데이터 검증 오류를 일관된 JSON 응답으로 변환한다."""
+    """요청 데이터 검증 오류를 일관된 JSON 응답으로 변환하고 exception.log에 기록한다."""
+
+    logger.warning(
+        "Validation error: %s %s → %s",
+        request.method,
+        request.url.path,
+        exc.errors(),
+    )
 
     return JSONResponse(
         status_code=422,
