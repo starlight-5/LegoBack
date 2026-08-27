@@ -4,16 +4,10 @@ legoback으로 생성된 프로젝트입니다.
 
 포함 모듈: {% if modules %}{{ modules | join(', ') }}{% else %}(없음 — 최소 뼈대){% endif %}
 
-## 실행
-
-```bash
-cd {{ project_name }}
-.venv\Scripts\activate
-uvicorn src.main:app --reload      # 로컬 실행
-```
 
 동작 확인: http://localhost:8000/health
 API 문서: http://localhost:8000/docs
+
 
 {% if 'docker' in modules and 'database' in modules %}
 
@@ -655,28 +649,28 @@ docker compose down -v
 
 #### 준비물
 
-- WSL 자체가 아직 없다면, 관리자 권한으로 PowerShell이나 명령 프롬프트를 열고
+1. WSL 자체가 아직 없다면, 관리자 권한으로 PowerShell를 열고
   `wsl --install` 명령어를 입력해 먼저 설치하세요 (설치 후 컴퓨터 재시작이
-  필요할 수 있습니다).
-- 설치후 WSL 터미널에서 아래 명령으로 Redis를 설치/실행합니다.
-  ```bash
-  sudo apt update && sudo apt install redis-server && sudo service redis-server start
+  필요합니다).
+2. (중요)비밀번호를 기억하세요.
+3. 설치후 WSL 터미널에서 아래 명령으로 Redis를 설치/실행합니다.
+  ```powershell
+  wsl sudo apt update 
+  wsl sudo apt install redis-server
+  wsl sudo service redis-server start
   ```
-  `apt update` 없이 바로 install하면 방금 설치한 WSL의 패키지 목록이 비어있어
-  "Unable to locate package redis-server" 에러가 날 수 있습니다.
-- 이 문서의 `redis-cli` 명령은 WSL 안에만 설치된 프로그램을 부르는 것이라,
-  아래 4~8번처럼 PowerShell에서 그대로 실행하려면 앞에 `wsl`을 붙여야 합니다
-  (`wsl redis-cli ...`). WSL 터미널 안에 직접 들어가 있는 상태라면 `wsl` 없이
-  `redis-cli ...`만 입력해도 됩니다.
+  - `wsl sudo apt update`: WSL의 패키지 목록을 최신으로 갱신합니다.
+  - `wsl sudo apt install redis-server`: Redis 서버를 설치합니다.
+  - `wsl sudo service redis-server start`: 설치된 Redis 서버를 실행합니다.
+
 - `wsl redis-cli ping`을 쳤는데 `redis-cli: not found`가 뜬다면, WSL 배포판이
   여러 개 설치되어 있고 그중 redis를 설치하지 않은 배포판이 기본값으로 잡혀있는
-  경우입니다 (Docker Desktop을 쓰면 `docker-desktop`이 기본값으로 잡히는 경우가
-  흔한데, 여기엔 redis가 없습니다). PowerShell에서 아래 명령으로 배포판 목록과
-  기본값(`*` 표시)을 확인하세요.
+  경우입니다.
+4. PowerShell에서 아래 명령으로 배포판 목록과기본값(`*` 표시)을 확인하세요.
   ```powershell
   wsl -l -v
   ```
-  redis를 설치한 배포판 이름(예: `Ubuntu`)이 기본값이 아니라면, 그 배포판을
+5.redis를 설치한 배포판 이름(예: `Ubuntu`)이 기본값이 아니라면, 그 배포판을
   기본값으로 바꾸세요 (Docker 동작에는 영향 없습니다):
   ```powershell
   wsl --set-default Ubuntu
@@ -778,5 +772,47 @@ deactivate
 ```wsl
 sudo service redis-server stop
 ```
+{% endif %}
+
+{% if 'redis-cache' in modules %}
+
+## Redis 캐시, 실제 코드에서 사용하기
+
+위 확인 단계들은 Redis 자체가 잘 붙어있는지 `redis-cli`로 직접 찔러본 것일
+뿐입니다. 프로젝트를 생성했다고 해서 앱의 어떤 코드가 자동으로 캐시를 쓰게
+되지는 않습니다. `jwt-auth`나 `rbac`처럼 라우터가 자동으로 등록되는 모듈과
+달리, `redis-cache`는 `src/core/cache.py`에 **바로 가져다 쓸 수 있는 함수만
+제공**하는 모듈이라, 실제로 효과를 보려면 원하는 함수나 라우터에 직접
+import해서 써야 합니다.
+
+가장 간단한 방법은 반복적으로 실행되는 조회 함수에 `@cached` 데코레이터를
+붙이는 것입니다. 아래 내용은 예시입니다.
+```python
+from src.core.cache import cached
+
+@cached(ttl=60)
+def get_popular_posts(db):
+    return db.query(Post).order_by(Post.views.desc()).limit(10).all()
+```
+같은 인자로 다시 호출하면 60초 동안은 DB 대신 Redis에서 결과를 돌려줍니다.
+
+`cache_get`/`cache_set`을 직접 호출해서 더 세밀하게 제어할 수도 있습니다.
+```python
+from src.core.cache import cache_get, cache_set
+
+def get_user_profile(user_id: int, db):
+    key = f"user:{user_id}:profile"
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+
+    profile = db.query(User).filter(User.id == user_id).first()
+    cache_set(key, {"email": profile.email, "role": profile.role}, ttl=300)
+    return profile
+```
+
+캐시를 지울 때는 `cache_delete(key)`(특정 키 하나) 또는
+`cache_invalidate("user:*")`(패턴에 맞는 키 전부)를 씁니다 — 예를 들어 사용자
+정보를 수정하는 API에서, 이전에 캐싱해둔 값을 같이 지워야 할 때 씁니다.
 {% endif %}
 
