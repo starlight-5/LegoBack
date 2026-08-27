@@ -648,7 +648,7 @@ docker compose down -v
   ```powershell
   wsl -l -v
   ```
-5.redis를 설치한 배포판 이름(예: `Ubuntu`)이 기본값이 아니라면, 그 배포판을
+5. redis를 설치한 배포판 이름(예: `Ubuntu`)이 기본값이 아니라면, 그 배포판을
   기본값으로 바꾸세요 (Docker 동작에는 영향 없습니다):
   ```powershell
   wsl --set-default Ubuntu
@@ -684,6 +684,8 @@ Redis와 다르면 그 숫자만 맞게 바꿔주세요.)
 내용이 로컬에서 그냥 실행하면 자동으로 적용되지 않습니다. 다른 모듈과 마찬가지로
 `python-dotenv`를 설치해서 `.env` 내용을 명령어에 실어 보내는 방법을 씁니다.
 
+{% if 'redis-cache' in modules and 'database' in modules %}
+⚠️dotenv run -- uvicorn src.main:app --reload는 DB설정 완료후 실행해야함.{% endif%}
 ```powershell
 pip install "python-dotenv[cli]"
 dotenv run -- uvicorn src.main:app --reload
@@ -747,8 +749,8 @@ deactivate
 ```
 
 - WSL 터미널에서 Redis 종료합니다.
-```wsl
-sudo service redis-server stop
+```powershell
+wsl sudo service redis-server stop
 ```
 {% endif %}
 
