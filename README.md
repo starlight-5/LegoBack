@@ -200,6 +200,26 @@ See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 3. Confirm conflict checks pass (`pytest`)
 4. Follow the full process in [docs/CONTRIBUTING-MODULES.md](docs/CONTRIBUTING-MODULES.md)
 
+### Windows Security Block (Smart App Control)
+
+If `legoback new <project>` fails with a message saying the file was blocked
+by an application control policy, for example:
+
+- PowerShell: something like `Program 'legoback.exe' failed to run: This
+  program is blocked by your organization's application control policy.`
+  (exact wording depends on your Windows language/version), or
+- cmd: something like `'[your folder path]\LegoBack\.venv\Scripts\legoback.exe'
+  is blocked by your organization's Device Guard policy. Contact support for
+  more information.`
+
+this is Windows 11's **Smart App Control** blocking an unsigned/unrecognized
+executable.
+
+**Fix:**
+1. Windows Security → App & browser control → Smart App Control settings → turn it Off
+2. Re-run `legoback new <project-folder-name>`
+3. Windows Security → App & browser control → Smart App Control settings → turn it back On
+
 
 License
 -------

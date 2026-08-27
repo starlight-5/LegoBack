@@ -224,6 +224,30 @@ pytest --cov=src/scaffold/engine --cov-fail-under=70   # CI와 동일한 커버�
 4. 자세한 절차는 [docs/CONTRIBUTING-MODULES.md](docs/CONTRIBUTING-MODULES.md) 참고
 
 
+### window 보안 오류 해결
+1. powershell 에서 아래 오류 발생
+
+'legoback.exe' 프로그램을 실행하지 못했습니다. 애플리케이션 제어 정
+책에서 이 파일을 차단했습니다위치 줄:1 문자:1
++ legoback new a
++ ~~~~~~~~~~~~~~.
+위치 줄:1 문자:1
++ legoback new a
++ ~~~~~~~~~~~~~~
+    + CategoryInfo          : ResourceUnavailable: (:) [], Applica 
+   tionFailedException
+    + FullyQualifiedErrorId : NativeCommandFailed
+
+2. cmd 에서 아래와 같은 오류 발생
+ '[본인 컴퓨터 폴더 경로]\LegoBack\.venv\Scripts\legoback.exe' 조직의 Device Guard 정책에 의해 차단되었습니다.        
+자세한 내용은 지원 담당자에게 문의하세요.
+
+해결
+1. window 보안 -> 앱 및 브라우저 컨트롤 -> 스마트 앱 컨트롤 설정 -> 끄기
+2. legoback new [프로젝트 폴더명] 명령어 재진행 
+3. window 보안 -> 앱 및 브라우저 컨트롤 -> 스마트 앱 컨트롤 설정 -> 켜기
+
+
 License
 -------
 

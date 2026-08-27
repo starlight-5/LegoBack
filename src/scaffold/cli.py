@@ -319,7 +319,6 @@ def run_init_flow(project_name: str, project_dir: Path, verbose: bool) -> None:
     # 6. 모듈 의존성을 해석한다.
     with ui.step("의존성 해석 중..."):
         ordered = _resolve_dependencies(selected, manifests)          # [2.2.2]
-
     # 7. 모듈 옵션을 질문한다.
     option_answers = _ask_options(ordered, manifests)                 # [신규] db_type 등 옵션 질문
     selected_manifests = {name: manifests[name] for name in ordered}
